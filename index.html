@@ -474,6 +474,7 @@ function vHome(){
   h+=`<div class="rec2"><button class="bo" data-act="rec" data-t="expense"><span class="sym">${ic("minus")}</span>Spent</button><button class="bi" data-act="rec" data-t="income"><span class="sym">${ic("plus")}</span>Received</button></div>`;
   const setup=[];
   if(!accounts().some(a=>a.type==="bank"||a.type==="ewallet"))setup.push(["Add your bank or e-wallet","addacc","landmark","#007AFF"]);
+  if(s.needBal)setup.unshift(["Enter your current account balances","balances","wallet","#007AFF"]);
   if(D.tx.length>10&&(!s.lastBackup||(Date.now()-s.lastBackup)>30*864e5))setup.push(["Back up your records","backup","save","#FF9500"]);
   if(setup.length)h+=`<div class="group" style="margin-top:12px">${setup.map(([t,a,i,c])=>rowH({act:a,lead:icoHTML(i,c),title:t,chev:true})).join("")}</div>`;
   if(hasPlan){
@@ -795,7 +796,7 @@ function sheetBalances(){
   openSheet(`<h2>Update balances</h2><p class="muted small" style="margin-top:-8px">Type what's in each account right now. For cards and PayLater, type what you owe.</p>
   ${accounts().filter(a=>!(a.type==="debt"&&isLoan(a.kind))).map(a=>`<div class="field"><label style="display:flex;align-items:center;gap:8px">${esc(a.name)}${a.type==="debt"?", owed":""}</label><input class="num" inputmode="decimal" data-acc="${esc(a.id)}" value="${a.type==="debt"?stmtOwed(a):accBalance(a)}"></div>`).join("")}
   <button class="btn" id="b-ok">Save balances</button>`,sh=>{
-    sh.querySelector("#b-ok").onclick=()=>{sh.querySelectorAll("[data-acc]").forEach(i=>{const a=acc(i.dataset.acc);let v=num(i.value);if(a.type==="debt")v=-Math.abs(v);a.opening=r2((a.opening||0)+(v-accBalance(a)));});commit();closeSheet();toast("Balances saved");};
+    sh.querySelector("#b-ok").onclick=()=>{sh.querySelectorAll("[data-acc]").forEach(i=>{const a=acc(i.dataset.acc);let v=num(i.value);if(a.type==="debt")v=-Math.abs(v);a.opening=r2((a.opening||0)+(v-accBalance(a)));});delete S().needBal;commit();closeSheet();toast("Balances saved");};
   });
 }
 

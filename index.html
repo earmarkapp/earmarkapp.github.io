@@ -3,8 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Earmark — money tracker</title>
-<meta name="description" content="Record money in and out in seconds, set aside money for bills, and track savings goals and debts. Your data stays on your phone.">
+<title>Earmark: track spending, plan bills, save for goals</title>
+<meta name="description" content="Earmark is a free money tracker. Record spending in seconds, plan your bills, save for goals and keep track of debts. Your data stays on your phone.">
+<meta property="og:title" content="Earmark: your money tracker">
+<meta property="og:description" content="Track spending, plan bills, save for goals. Free, no sign-up, your data stays on your phone.">
+<meta property="og:image" content="https://earmarkapp.github.io/icons/icon-512.png">
+<meta property="og:url" content="https://earmarkapp.github.io/">
+<meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -180,7 +185,7 @@ nav.tabs .plus svg{width:24px;height:24px;stroke-width:2.4}
 #toast button{font-weight:700;opacity:.75}
 
 .welcome{min-height:calc(100vh - 100px);display:flex;flex-direction:column;justify-content:flex-end;padding:20px 4px 10px}
-.welcome .mark{width:72px;height:72px;border-radius:17px;margin-bottom:22px}
+.welcome .mark{width:64px;height:64px;border-radius:15px}
 .welcome h1{font-size:36px;font-weight:700;letter-spacing:.005em;line-height:1.1;margin:0 0 12px}
 .welcome p{color:var(--muted);margin:0 0 28px;font-size:17px;line-height:1.45;max-width:30ch}
 .welcome .hint{max-width:none;margin:16px 0 0;text-align:center}
@@ -441,7 +446,7 @@ function render(){
 }
 function top(title,opts){opts=opts||{};return opts.back?`<div class="top" style="padding-bottom:4px"><button class="back" data-act="back">${ic("chevron-left")} Back</button>${opts.right||""}</div><div class="top" style="padding-top:0"><h1>${esc(title)}</h1></div>`:`<div class="top"><h1>${esc(title)}</h1>${opts.right?`<div class="acts">${opts.right}</div>`:""}</div>`}
 function vWelcome(){
-  return `<div class="welcome"><img class="mark" src="icons/icon-192.png" alt="">
+  return `<div class="welcome"><div style="display:flex;align-items:center;gap:14px;margin-bottom:26px"><img class="mark" src="icons/icon-192.png" alt="" style="margin:0"><div><div style="font-size:24px;font-weight:700">Earmark</div><div class="muted" style="font-size:16px">Your money tracker</div></div></div>
   <h1>Know where your money goes.</h1>
   <p>Record what you spend and receive in a few taps. Plan your bills, save for goals, and keep track of what you owe.</p>
   <button class="btn" data-act="start">Get started</button>

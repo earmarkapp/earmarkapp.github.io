@@ -2,7 +2,7 @@
 
 **Know what's actually safe to spend.**
 
-Earmark is a simple budget app for your phone. Plan the payments you make every month (rent, car loan, phone bill, card minimums). The money stays set aside until you tick each one off, so the number on the home screen is what you can really spend.
+Earmark is a simple budget app for your phone. Record money in and out in seconds, set aside money for bills, and track savings goals and debts.
 
 - Planned payments that repeat every month, plus one-off ones
 - Spending budgets (Groceries, Food) that you log against

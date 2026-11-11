@@ -7,7 +7,6 @@ Earmark is a simple budget app for your phone. Record money in and out in second
 - Planned payments that repeat every month, plus one-off ones
 - Spending budgets (Groceries, Food) that you log against
 - Credit cards, paylaters and loans, showing what you owe and roughly when it'll be paid off
-- Import your history from a Money+ CSV export
 - Backup and restore with a single file
 
 🔒 **Your data never leaves your phone.** There's no account and no server. Everything is saved in your browser on your device. Save a backup now and then.

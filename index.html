@@ -1106,7 +1106,7 @@ function sheetAddPlan(m,keep,st){
   openSheet(`<h2>Add a payment</h2>
   <div class="seg" id="ap-seg" style="margin-bottom:14px"><button data-v="monthly" class="${st.mode==="monthly"?"on":""}">Every month</button><button data-v="once" class="${st.mode==="once"?"on":""}">Only ${MONTHS[+m.slice(5)-1]}</button></div>
   <div id="ap-month" ${st.mode==="monthly"?"":"hidden"}>${itemForm(null,m,st)}</div>
-  <div id="ap-once" ${st.mode==="once"?"":"hidden"}><div class="field"><label>What is it?</label><input id="ao-name" placeholder="e.g. KL trip, Road tax, Wedding gift"></div>
+  <div id="ap-once" ${st.mode==="once"?"":"hidden"}><div class="field"><label>What is it?</label><input id="ao-name" placeholder="e.g. Holiday, Road tax, Wedding gift"></div>
   <div class="two"><div class="field"><label>Amount</label><input id="ao-amt" class="num" inputmode="decimal" placeholder="0.00"></div><div class="field"><label>Due day</label><input id="ao-due" inputmode="numeric" placeholder="e.g. 30"></div></div>
   <div class="field"><label>Group</label><select id="ao-grp">${groupOptions("fun",true)}</select></div></div>
   <button class="btn" id="ap-ok">Add</button>`,sh=>{
@@ -1214,7 +1214,7 @@ function sheetGoalForm(id){
   };
   openSheet(`<h2>${g?"Edit goal":"New goal"}</h2>
   ${g?"":`<div class="picker" id="g-tpl" style="margin-bottom:16px">${[["trip","Trip"],["gadget","Gadget"],["emergency","Emergency"],["custom","Other"]].map(([t,n])=>`<button data-t="${t}" class="${t==="custom"?"on":""}">${icoHTML(TEMPLATE_ICONS[t],"#34C759")}${n}</button>`).join("")}</div>`}
-  <div class="field"><label>Goal</label><input id="g-n" value="${esc(g?g.name:"")}" placeholder="e.g. Korea trip, new phone"></div>
+  <div class="field"><label>Goal</label><input id="g-n" value="${esc(g?g.name:"")}" placeholder="e.g. Holiday, new phone"></div>
   <div class="field"><label>Budget breakdown</label><div id="gp"></div><button class="linkbtn" id="gp-add">Add an item</button></div>
   <div class="field" id="g-tw"><label>Or a total amount</label><input id="g-t" class="num" inputmode="decimal" value="${g&&!parts.length?g.target||"":""}" placeholder="0.00"></div>
   <div class="kv total" style="margin-bottom:12px"><span>You need</span><b class="num" id="g-tot">${CUR()} 0.00</b></div>

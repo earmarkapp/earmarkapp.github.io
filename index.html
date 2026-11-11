@@ -183,6 +183,7 @@ nav.tabs .plus svg{width:24px;height:24px;stroke-width:2.4}
 .welcome .mark{width:72px;height:72px;border-radius:17px;margin-bottom:22px}
 .welcome h1{font-size:36px;font-weight:700;letter-spacing:.005em;line-height:1.1;margin:0 0 12px}
 .welcome p{color:var(--muted);margin:0 0 28px;font-size:17px;line-height:1.45;max-width:30ch}
+.welcome .hint{max-width:none;margin:16px 0 0;text-align:center}
 .foot{text-align:center;font-size:13px;color:var(--muted);margin:26px 0 4px}
 .hist{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end;height:72px;padding:6px 14px 10px}
 .hist div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--muted)}
@@ -445,7 +446,7 @@ function vWelcome(){
   <p>Record what you spend and receive in a few taps. Plan your bills, save for goals, and keep track of what you owe.</p>
   <button class="btn" data-act="start">Get started</button>
   <div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="import">I have a backup file</button></div>
-  <p class="hint" style="text-align:center;margin-top:16px">No sign-up. Everything stays on your phone.</p></div>`;
+  <p class="hint">No sign-up. Everything stays on your phone.</p></div>`;
 }
 function txRow(x){
   const a=acc(x.account),to=acc(x.toAccount);let icon,color,title,sub,amt,cls="";

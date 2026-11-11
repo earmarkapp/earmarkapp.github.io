@@ -379,6 +379,11 @@ function bcMonthly(a,m){m=m||thisYM();return r2((a.plans||[]).filter(p=>p.end&&p
 function paidIn(a,m){return r2(D.tx.filter(x=>x.type==="transfer"&&x.toAccount===a.id&&ymOf(x.date)===m).reduce((s,x)=>s+x.amount,0))}
 const bcDue=a=>r2(Math.max(0,bcMonthly(a)-paidIn(a,thisYM())));
 const nonBC=a=>r2(Math.max(0,stmtOwed(a)-bcDue(a)));
+function loanLeftN(a){const p=(a.plans||[])[0];if(!p||!p.end)return 0;return Math.max(0,mDiff(thisYM(),p.end))+(bcDue(a)>0?1:0)}
+function loanPayoff(a){const p=(a.plans||[])[0];if(!p||!p.monthly)return null;const n=loanLeftN(a),r=(a.rate||0)/1200;
+  const pv=k=>r>0?p.monthly*(1-Math.pow(1+r,-k))/r:p.monthly*k;
+  if(a.payoff&&a.payoffN)return r2(a.payoff*(pv(n)/pv(a.payoffN)));
+  return r>0?r2(pv(n)):null;}
 function setNonBC(a,v){const target=-(Math.abs(v)+bcDue(a));a.opening=r2((a.opening||0)+(target-accBalance(a)));}
 const totalDebt=()=>r2(accounts().filter(a=>a.type==="debt").reduce((s,a)=>s+owed(a),0));
 function linkedMonthly(a,m){m=m||thisYM();return r2(items().filter(i=>i.payTo===a.id&&itemActive(i,m)).reduce((s,i)=>s+amountFor(i,m),0))}
@@ -669,7 +674,9 @@ function vDebts(){
       let rows="";
       if(loan){
         const p=(a.plans||[])[0];
-        if(p&&p.end){const more=Math.max(0,mDiff(m,p.end));rows+=`<div class="kv"><span class="muted">Instalment</span><b>${fmt(p.monthly)}/month</b></div><div class="kv"><span class="muted">Payments left</span><b>${more+(bcDue(a)>0?1:0)}${p.total?` of ${p.total}`:""}</b></div><div class="kv"><span class="muted">Last payment</span><b style="font-family:var(--sys)">${mLabel(p.end)}</b></div>`;}
+        if(p&&p.end){const n=loanLeftN(a),po=loanPayoff(a);rows+=`<div class="kv"><span class="muted">Instalment</span><b>${fmt(p.monthly)}/month</b></div><div class="kv"><span class="muted">Payments left</span><b>${n}${p.total?` of ${p.total}`:""}</b></div><div class="kv"><span class="muted">Last payment</span><b style="font-family:var(--sys)">${mLabel(p.end)}</b></div>`;
+          if(a.principal)rows+=`<div class="kv"><span class="muted">Borrowed</span><b>${fmt(a.principal)}</b></div>`;
+          if(po!=null&&po<o)rows+=`<div class="kv"><span>Settle in full now${a.payoff&&a.payoffAt===m?"":", about"}</span><b>${fmt(po)}</b></div><div class="kv"><span class="pos">You'd save by settling now</span><b class="pos">${fmt(o-po)}</b></div>`;}
         else rows+=`<div class="kv"><span class="neg">Add the monthly instalment and which number you're on</span></div>`;
       }else{
         const n=nonBC(a);
@@ -869,7 +876,7 @@ function sheetDebtForm(a,preset){
   const kn=DEBT_KINDS.find(k=>k[0]===kind)[1];
   const loanInfo=sh=>{const mo=num(sh.querySelector("#d-mo").value),now=parseInt(sh.querySelector("#d-now").value)||0,tot=parseInt(sh.querySelector("#d-tot").value)||0,el=sh.querySelector("#d-li");
     if(!(mo>0&&tot>0&&now>0)){el.textContent="Your loan statement or app shows which instalment you're on, like 12 of 60.";return}
-    const more=Math.max(0,tot-now);el.textContent=`${RM(mo*(more+1))} left to pay including this month. Last payment ${mLabel(addM(m,more))}.`;};
+    const more=Math.max(0,tot-now);el.textContent=`${more} payments after this month, ${RM(mo*more)}. Last payment ${mLabel(addM(m,more))}.`;};
   openSheet(`<h2>${a?esc(a.name):"New "+kn.toLowerCase()}</h2>
   <div style="display:flex;gap:12px;align-items:center;margin:0 4px 16px">${badgeHTML(base,true)}<div class="muted small">${esc(kn)}</div></div>
   <div class="field"><label>Name</label><input id="d-n" value="${esc(base.name||"")}" placeholder="e.g. ${kind==="card"?"Maybank Visa":kind==="bnpl"?"Atome":"Car loan"}"></div>
@@ -878,6 +885,8 @@ function sheetDebtForm(a,preset){
   <div class="two"><div class="field"><label>This month's instalment number</label><input id="d-now" class="num" inputmode="numeric" value="${lp.now||""}" placeholder="e.g. 12"></div><div class="field"><label>Out of</label><input id="d-tot" class="num" inputmode="numeric" value="${lp.total||""}" placeholder="e.g. 60"></div></div>
   <p class="hint" id="d-li" style="margin:-6px 4px 14px"></p>
   <div class="two"><div class="field"><label>Interest % a year</label><input id="d-r" class="num" inputmode="decimal" value="${a?a.rate||"":""}" placeholder="optional"></div><div class="field"><label>Due day</label><input id="d-due" inputmode="numeric" value="${linked&&linked.dueDay||""}" placeholder="e.g. 7"></div></div>
+  <div class="two"><div class="field"><label>Amount borrowed</label><input id="d-pr" class="num" inputmode="decimal" value="${a&&a.principal||""}" placeholder="optional"></div><div class="field"><label>Settle-in-full amount now</label><input id="d-po" class="num" inputmode="decimal" value="${a&&a.payoff&&a.payoffAt===m?a.payoff:""}" placeholder="optional"></div></div>
+  <p class="hint" style="margin:-6px 4px 14px">Ask your bank or check the app for the early settlement amount. ${esc(CONFIG.appName)} uses it to show how much you'd save by settling early.</p>
   `:`
   <div class="field"><label>${kind==="card"?"Balance not under BC or EPP":"Owed now, not counting instalments"}</label><input id="d-o" class="big num" inputmode="decimal" value="${a?nonBC(a):""}" placeholder="0.00"></div>
   <p class="hint" style="margin:-6px 4px 14px">${kind==="card"?"This is the part that charges interest if you don't clear it. Don't include your BC balance.":"What you owe outside any instalment plans."}</p>
@@ -900,8 +909,10 @@ function sheetDebtForm(a,preset){
         const mo=num(sh.querySelector("#d-mo").value),now=parseInt(sh.querySelector("#d-now").value)||0,tot=parseInt(sh.querySelector("#d-tot").value)||0;pay=mo;
         const p=Object.assign({},lp,{monthly:mo,now,total:tot,from:lp.from||m});setEnd(p);if(!(tot>0&&now>0))p.end=lp.end||null;
         o.plans=mo>0&&p.end?[p]:[];
+        const pr=num(sh.querySelector("#d-pr").value),po=num(sh.querySelector("#d-po").value);o.principal=pr||null;
         if(!a)accounts().push(o);
         o.opening=r2((o.opening||0)+(-bcDue(o)-accBalance(o)));
+        if(po>0){o.payoff=po;o.payoffAt=m;o.payoffN=loanLeftN(o);}
       }else{
         o.plans=plans.filter(p=>p.monthly>0).map(p=>{setEnd(p);return Object.assign({from:m},p)}).filter(p=>p.end);
         if(!a)accounts().push(o);

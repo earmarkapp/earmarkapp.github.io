@@ -602,6 +602,55 @@ function vGoals(){
   if(done.length)h+=`<div class="ghead"><h2>Completed</h2></div><div class="group">${done.map(g=>rowH({act:"goal",data:`data-id="${esc(g.id)}"`,lead:icoHTML("trophy","#34C759"),title:esc(g.name),right:`<span class="amt">${fmt0(goalSaved(g))}</span>`,chev:true})).join("")}</div>`;
   return h+`<div class="btns"><button class="btn" data-act="addgoal">New goal</button></div>`;
 }
+/* Card payoff plan: pay BC dues, then clear non-BC (highest interest first), then save the rest to settle BCs early (smallest first). */
+function cardPlan(){
+  const m0=thisYM();
+  const cards=accounts().filter(a=>a.type==="debt"&&!isLoan(a.kind)&&(owed(a)>0));
+  if(!cards.length)return null;
+  const B=r2(cards.reduce((s,a)=>s+linkedMonthly(a,m0),0));
+  if(B<=0)return {noBudget:true,cards};
+  const thisLeft=r2(cards.reduce((s,a)=>s+planLines(m0).filter(l=>l.payTo===a.id&&!l.paid).reduce((t,l)=>t+l.amount,0),0));
+  const st=cards.map(a=>({a,n:nonBC(a),r:(a.rate||0)/1200,plans:(a.plans||[]).filter(p=>p.end&&p.end>=m0).map(p=>({monthly:p.monthly,end:p.end,from:p.from||m0})),settled:false,cleared:nonBC(a)<=0.005}));
+  const remBC=(s,m)=>s.settled?0:r2(s.plans.reduce((t,p)=>t+p.monthly*Math.max(0,mDiff(m,p.end)),0));
+  const dueBC=(s,m)=>s.settled?0:(m===m0?bcDue(s.a):r2(s.plans.filter(p=>p.end>=m&&p.from<=m).reduce((t,p)=>t+p.monthly,0)));
+  let fund=0,m=m0,events=[],now=null,origEnd=m0;
+  st.forEach(s=>s.plans.forEach(p=>{if(p.end>origEnd)origEnd=p.end}));
+  for(let i=0;i<120;i++){
+    if(i>0)st.forEach(s=>{if(s.n>0)s.n=r2(s.n*(1+s.r));});
+    let avail=i===0?thisLeft:B;const pay={};st.forEach(s=>pay[s.a.id]=0);
+    for(const s of st){const d=Math.min(avail,dueBC(s,m));pay[s.a.id]+=d;avail=r2(avail-d);const short=r2(dueBC(s,m)-d);if(short>0)s.n=r2(s.n+short);}
+    for(const s of st){if(s.n<=0||avail<=0)continue;const mn=Math.min(s.n,Math.max(50,r2(s.n*0.05)));const d=Math.min(avail,mn);s.n=r2(s.n-d);pay[s.a.id]+=d;avail=r2(avail-d);}
+    for(const s of st.slice().sort((x,y)=>(y.r-x.r)||(x.n-y.n))){if(s.n<=0||avail<=0)continue;const d=Math.min(avail,s.n);s.n=r2(s.n-d);pay[s.a.id]+=d;avail=r2(avail-d);}
+    for(const s of st)if(!s.cleared&&s.n<=0.005){s.cleared=true;events.push({m,t:`Non-BC balance on ${s.a.name} fully paid`,k:"clear"});}
+    const allClear=st.every(s=>s.n<=0.005);
+    let saved=0;if(allClear&&avail>0){fund=r2(fund+avail);saved=avail;avail=0;}
+    if(i===0)now={pay,saved:0,left:thisLeft};
+    if(i===0&&allClear)now.saved=saved;
+    for(const s of st.filter(s=>!s.settled&&remBC(s,m)>0).sort((x,y)=>remBC(x,m)-remBC(y,m))){const R=remBC(s,m);if(allClear&&fund>=R-0.005){fund=r2(fund-R);s.settled=true;events.push({m,t:`Settle ${s.a.name} BC early with about ${RM(R)} from your fund`,k:"settle",amt:R});}}
+    const done=st.every(s=>s.n<=0.005&&(s.settled||remBC(s,m)<=0));
+    if(done){events.push({m,t:"All card debt cleared",k:"done"});break;}
+    m=addM(m,1);
+  }
+  const doneEv=events.find(e=>e.k==="done");
+  return {B,thisLeft,now,events,doneM:doneEv?doneEv.m:null,origEnd,cards,fundMonthly:r2(B-cards.reduce((s,a)=>s+bcMonthly(a,m0),0))};
+}
+function planHTML(){
+  const P=cardPlan();if(!P)return "";
+  if(P.noBudget)return `<div class="ghead"><h2>Payoff plan</h2></div><div class="group"><div class="empty" style="padding:18px">Add how much you pay each month on your cards (tap a card, “I usually pay each month”) to see when they'll be cleared.</div></div>`;
+  let h=`<div class="ghead"><h2>Payoff plan</h2></div><div class="group">`;
+  h+=`<div class="kv"><span class="muted">Your card budget</span><b>${fmt(P.B)}/month</b></div>`;
+  if(P.thisLeft>0){
+    h+=`<div class="kv" style="border-bottom:0;padding-bottom:4px"><span style="font-weight:600">This month, pay</span><span></span></div>`;
+    for(const a of P.cards){const v=P.now.pay[a.id]||0;if(v>0)h+=`<div class="kv" style="padding-top:4px;padding-bottom:4px;border-bottom:0"><span>${esc(a.name)}</span><b>${fmt(v)}</b></div>`;}
+    if(P.now.saved>0)h+=`<div class="kv" style="padding-top:4px;border-bottom:0"><span>Set aside for early settlement</span><b class="pos">${fmt(P.now.saved)}</b></div>`;
+    h+=`<div style="border-bottom:.5px solid var(--line);margin:6px 0 0"></div>`;
+  }
+  for(const e of P.events)h+=`<div class="kv"><span>${esc(e.t)}</span><b style="font-family:var(--sys);white-space:nowrap;${e.k==="done"?"color:var(--in)":""}">${mShort(e.m)}</b></div>`;
+  h+=`</div>`;
+  if(P.doneM&&P.origEnd>P.doneM)h+=`<p class="hint">Cards cleared ${mLabel(P.doneM)} instead of ${mLabel(P.origEnd)}, about ${mDiff(P.doneM,P.origEnd)} months sooner. Each card gets at least its BC plus 5% of the balance (min RM50). Assumes settling early costs the remaining instalments; your bank may charge less.</p>`;
+  else h+=`<p class="hint">Pays each card's BC and minimum first, then the balance that charges interest, then saves the rest to settle BCs early.</p>`;
+  return h;
+}
 function vDebts(){
   const cr=accounts().filter(a=>a.type==="debt"),m=thisYM();
   const rev=cr.filter(a=>!isLoan(a.kind));
@@ -609,6 +658,8 @@ function vDebts(){
   let h=top("Debts",{back:true});
   h+=`<div class="group"><div class="pair"><div><div class="l">Total owed</div><div class="v neg">${fmt(totalDebt())}</div></div><div><div class="l">Paying each month</div><div class="v">${fmt(cr.reduce((s,a)=>s+linkedMonthly(a),0))}</div></div></div></div>`;
   if(rev.length)h+=`<div class="group" style="margin-top:10px"><div class="pair"><div><div class="l">Clear soon (interest)</div><div class="v ${nb>0?"neg":""}">${fmt(nb)}</div></div><div><div class="l">BC and loan instalments</div><div class="v">${fmt(bcm+loanm)}<span class="small muted" style="font-family:var(--sys);font-weight:400"> /month</span></div></div></div></div><p class="hint">“Clear soon” is card and PayLater balance outside BC. On cards it grows by about ${rev.some(a=>a.rate)?Math.max(...rev.map(a=>a.rate||0))/12:1.5}% a month until it's paid off.</p>`;
+  const cp=cardPlan(),hasPlan=!!(cp&&!cp.noBudget);
+  h+=planHTML();
   if(!cr.length)h+=`<div class="group" style="margin-top:12px"><div class="empty"><b>No debts added</b>Add credit cards, PayLater and loans to see what you owe and when it'll be cleared.</div></div>`;
   for(const [k,kn] of DEBT_KINDS){
     const list=cr.filter(a=>a.kind===k);if(!list.length)continue;
@@ -631,6 +682,7 @@ function vDebts(){
       if(o<=0&&(loan?(a.plans||[]).length:true))foot=`<span class="chip ok">Fully paid</span>`;
       else if(!mo)foot=loan?"":`Add how much you pay each month to see when it'll be cleared.`;
       else if(po&&po.never)foot=`<span class="neg">At ${fmt(mo)} a month this keeps growing. Pay more than the interest and instalments.</span>`;
+      else if(!loan&&hasPlan)foot="";
       else if(po)foot=`Paying ${fmt(mo)} a month, cleared by about ${mLabel(po.done)}${po.interest>1?`, around ${RM(po.interest)} in interest`:""}.`;
       h+=`<button class="group" data-act="account" data-id="${esc(a.id)}" style="display:block;width:100%;text-align:left;margin-bottom:10px"><div style="display:flex;gap:12px;align-items:center;padding:14px 16px 8px">${badgeHTML(a,true)}<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:17px">${esc(a.name)}</div><div class="small muted">${a.rate?a.rate+"% a year":"No interest"}</div></div><div style="text-align:right"><div class="num neg" style="font-size:20px;font-weight:700">${fmt(o)}</div><div class="small muted">total owed</div></div></div>${rows}${foot?`<div class="small muted" style="padding:10px 16px 14px">${foot}</div>`:""}</button>`;
     }

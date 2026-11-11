@@ -682,7 +682,7 @@ function sheetDebtView(id){
   const settled=(a.plans||[]).filter(p=>p.settled);
   if(settled.length)h+=`<p class="hint">${settled.length} BC settled early.</p>`;
   const linked=items().filter(i=>i.payTo===a.id&&itemActive(i,m));
-  if(linked.length&&!(CP()&&CP().on&&(CP().cards||[]).includes(a.id)))h+=`<p class="hint">You pay ${RM(linked.reduce((s,i)=>s+amountFor(i,m),0))} a month from your plan.</p>`;
+  {const pl=planLines(m).filter(l=>l.payTo===a.id&&l.amount>0);if(pl.length)h+=`<div class="ghead" style="margin-top:20px"><h2 style="font-size:17px">Payments in your ${MONTHS[+m.slice(5)-1]} plan</h2></div><div class="group">${pl.map(l=>`<div class="kv"><span>${esc(l.name)}<br><span class="small ${l.paid?"pos":"muted"}">${l.paid?"Paid":"Not paid yet"}</span></span><b>${fmt(l.amount)}</b></div>`).join("")}</div>`;}
   h+=`<div class="btns"><button class="btn ghost" id="dv-edit">Edit details</button>${k==="card"&&unbilled(a)>0?`<button class="btn ghost" id="dv-settle">Settle BC early</button>`:""}${!loan?`<button class="btn ghost" id="dv-int">Add an interest or late charge</button>`:""}</div>`;
   openSheet(h,sh=>{
     sh.querySelector("#dv-edit").onclick=()=>sheetAccountForm(id);
@@ -808,7 +808,7 @@ function sheetSettleBC(id){
   <p class="hint" id="sb-h"></p>
   <button class="btn" id="sb-ok">Settle BC</button>`,sh=>{
     const amt=sh.querySelector("#sb-a"),from=sh.querySelector("#sb-f"),hint=sh.querySelector("#sb-h");
-    const upd=()=>{const v=num(amt.value),f=acc(from.value);hint.innerHTML=`Two entries are made:<br>1. The BC you're settling (${RM(v)}) is added to ${esc(a.name)}, so the card owes it now.<br>2. ${RM(v)} moves from ${esc(f?f.name:"")} to ${esc(a.name)}, which clears it.<br>This month's instalment stays due as usual.${c.fund&&from.value===c.fund?" The money comes out of your BC fund first.":""}`;};
+    const upd=()=>{const v=num(amt.value),f=acc(from.value);hint.innerHTML=`The BC left is already part of Total owed, so nothing is counted twice. Settling moves it from “BC left” to the card balance, then records ${RM(v)} paid from ${esc(f?f.name:"")} to ${esc(a.name)}. Total owed drops by ${RM(v)}. This month's instalment is still due as usual.${c.fund&&from.value===c.fund?" The money comes out of your BC fund.":""}`;};
     sh.querySelectorAll("[data-sbp]").forEach(x=>x.onchange=()=>{const i=+x.dataset.sbp;x.checked?sel.add(i):sel.delete(i);amt.value=tot();upd();});
     amt.oninput=upd;from.onchange=upd;upd();
     sh.querySelector("#sb-ok").onclick=()=>{const v=num(amt.value),T=tot();if(!sel.size||v<=0){toast("Pick a BC and amount");return}

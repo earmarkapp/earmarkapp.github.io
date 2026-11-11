@@ -145,7 +145,7 @@ nav.tabs .plus svg{width:24px;height:24px;stroke-width:2.4}
 .irow{display:grid;grid-template-columns:1fr 96px 34px;gap:6px;margin-bottom:6px}
 .irow input{padding:11px;border-radius:9px;border:0;background:var(--card);width:100%}
 .irow button,.prow button{border-radius:9px;background:var(--card);color:var(--out);font-size:16px}
-.prow{display:grid;grid-template-columns:1fr 84px 112px 32px;gap:6px;margin-bottom:4px}
+.prow{display:grid;grid-template-columns:1fr 82px 46px 46px 32px;gap:5px;margin-bottom:4px}
 .prow input{padding:10px;border-radius:9px;border:0;background:var(--card);width:100%;font-size:15px}
 .linkbtn{font-weight:600;font-size:15px;padding:6px 4px}
 .selrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border-radius:10px;padding:8px 14px;min-height:52px}
@@ -375,6 +375,11 @@ const cashTotal=()=>r2(accounts().filter(isSpend).reduce((s,a)=>s+accBalance(a),
 const stmtOwed=a=>r2(Math.max(0,-accBalance(a)));
 function unbilled(a){const m=thisYM();return r2((a.plans||[]).reduce((s,p)=>s+p.monthly*Math.max(0,p.end?mDiff(m,p.end):0),0))}
 const owed=a=>r2(stmtOwed(a)+unbilled(a));
+function bcMonthly(a,m){m=m||thisYM();return r2((a.plans||[]).filter(p=>p.end&&p.end>=m&&(!p.from||p.from<=m)).reduce((s,p)=>s+p.monthly,0))}
+function paidIn(a,m){return r2(D.tx.filter(x=>x.type==="transfer"&&x.toAccount===a.id&&ymOf(x.date)===m).reduce((s,x)=>s+x.amount,0))}
+const bcDue=a=>r2(Math.max(0,bcMonthly(a)-paidIn(a,thisYM())));
+const nonBC=a=>r2(Math.max(0,stmtOwed(a)-bcDue(a)));
+function setNonBC(a,v){const target=-(Math.abs(v)+bcDue(a));a.opening=r2((a.opening||0)+(target-accBalance(a)));}
 const totalDebt=()=>r2(accounts().filter(a=>a.type==="debt").reduce((s,a)=>s+owed(a),0));
 function linkedMonthly(a,m){m=m||thisYM();return r2(items().filter(i=>i.payTo===a.id&&itemActive(i,m)).reduce((s,i)=>s+amountFor(i,m),0))}
 function payoff(a){
@@ -598,27 +603,39 @@ function vGoals(){
   return h+`<div class="btns"><button class="btn" data-act="addgoal">New goal</button></div>`;
 }
 function vDebts(){
-  const cr=accounts().filter(a=>a.type==="debt");
+  const cr=accounts().filter(a=>a.type==="debt"),m=thisYM();
+  const rev=cr.filter(a=>!isLoan(a.kind));
+  const nb=r2(rev.reduce((s,a)=>s+nonBC(a),0)),bcm=r2(rev.reduce((s,a)=>s+bcMonthly(a),0)),loanm=r2(cr.filter(a=>isLoan(a.kind)).reduce((s,a)=>s+bcMonthly(a),0));
   let h=top("Debts",{back:true});
   h+=`<div class="group"><div class="pair"><div><div class="l">Total owed</div><div class="v neg">${fmt(totalDebt())}</div></div><div><div class="l">Paying each month</div><div class="v">${fmt(cr.reduce((s,a)=>s+linkedMonthly(a),0))}</div></div></div></div>`;
+  if(rev.length)h+=`<div class="group" style="margin-top:10px"><div class="pair"><div><div class="l">Clear soon (interest)</div><div class="v ${nb>0?"neg":""}">${fmt(nb)}</div></div><div><div class="l">BC and loan instalments</div><div class="v">${fmt(bcm+loanm)}<span class="small muted" style="font-family:var(--sys);font-weight:400"> /month</span></div></div></div></div><p class="hint">“Clear soon” is card and PayLater balance outside BC. On cards it grows by about ${rev.some(a=>a.rate)?Math.max(...rev.map(a=>a.rate||0))/12:1.5}% a month until it's paid off.</p>`;
   if(!cr.length)h+=`<div class="group" style="margin-top:12px"><div class="empty"><b>No debts added</b>Add credit cards, PayLater and loans to see what you owe and when it'll be cleared.</div></div>`;
   for(const [k,kn] of DEBT_KINDS){
     const list=cr.filter(a=>a.kind===k);if(!list.length)continue;
     h+=`<div class="ghead"><h2>${kn}${list.length>1?"s":""}</h2></div>`;
     for(const a of list){
-      const st=stmtOwed(a),ub=unbilled(a),o=st+ub,mo=linkedMonthly(a),po=o>0?payoff(a):null;
+      const o=owed(a),mo=linkedMonthly(a),po=o>0?payoff(a):null,loan=isLoan(k);
       let rows="";
-      if(ub>0)rows+=`<div class="kv"><span class="muted">${isLoan(k)?"Due now":"Balance"}</span><b>${fmt(st)}</b></div><div class="kv"><span class="muted">${isLoan(k)?"Instalments left":"Instalments (BC/EPP)"}</span><b>${fmt(ub)}</b></div>`;
-      if(a.rate>0&&st>0&&!isLoan(k))rows+=`<div class="kv"><span class="muted">Interest if not paid in full</span><b>~${fmt(st*a.rate/1200)}/mo</b></div>`;
+      if(loan){
+        const p=(a.plans||[])[0];
+        if(p&&p.end){const more=Math.max(0,mDiff(m,p.end));rows+=`<div class="kv"><span class="muted">Instalment</span><b>${fmt(p.monthly)}/month</b></div><div class="kv"><span class="muted">Payments left</span><b>${more+(bcDue(a)>0?1:0)}${p.total?` of ${p.total}`:""}</b></div><div class="kv"><span class="muted">Last payment</span><b style="font-family:var(--sys)">${mLabel(p.end)}</b></div>`;}
+        else rows+=`<div class="kv"><span class="neg">Add the monthly instalment and which number you're on</span></div>`;
+      }else{
+        const n=nonBC(a);
+        rows+=`<div class="kv"><span>${k==="card"?"Clear soon, charges interest":"Owed outside instalments"}</span><b class="${n>0&&a.rate?"neg":""}">${fmt(n)}</b></div>`;
+        if(n>0&&a.rate)rows+=`<div class="kv"><span class="muted">Interest if not cleared</span><b>~${fmt(n*a.rate/1200)}/month</b></div>`;
+        for(const p of (a.plans||[]).filter(p=>p.end&&p.end>=m)){const more=Math.max(0,mDiff(m,p.end));const num_=p.total?Math.max(1,p.total-more):null;
+          rows+=`<div class="kv"><span>${esc(p.name||"BC")} <span class="muted small">${num_?`${num_} of ${p.total}`:"until "+mShort(p.end)}</span></span><b>${fmt(p.monthly)}/month</b></div><div class="kv" style="padding-top:0;border-bottom:.5px solid var(--line)"><span class="muted small">Left to pay, ends ${mLabel(p.end)}</span><span class="muted small num">${fmt(p.monthly*(more+(bcDue(a)>0?1:0)))}</span></div>`;}
+      }
       let foot="";
-      if(o<=0)foot=`<span class="chip ok">Fully paid</span>`;
-      else if(!mo)foot=`Add a monthly payment to see when it'll be cleared.`;
+      if(o<=0&&(loan?(a.plans||[]).length:true))foot=`<span class="chip ok">Fully paid</span>`;
+      else if(!mo)foot=loan?"":`Add how much you pay each month to see when it'll be cleared.`;
       else if(po&&po.never)foot=`<span class="neg">At ${fmt(mo)} a month this keeps growing. Pay more than the interest and instalments.</span>`;
       else if(po)foot=`Paying ${fmt(mo)} a month, cleared by about ${mLabel(po.done)}${po.interest>1?`, around ${RM(po.interest)} in interest`:""}.`;
-      h+=`<button class="group" data-act="account" data-id="${esc(a.id)}" style="display:block;width:100%;text-align:left;margin-bottom:10px"><div style="display:flex;gap:12px;align-items:center;padding:14px 16px 10px">${badgeHTML(a,true)}<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:17px">${esc(a.name)}</div><div class="small muted">${a.rate?a.rate+"% a year":"No interest"}</div></div><div class="num neg" style="font-size:20px;font-weight:700">${fmt(o)}</div></div>${rows}<div class="small muted" style="padding:10px 16px 14px">${foot}</div></button>`;
+      h+=`<button class="group" data-act="account" data-id="${esc(a.id)}" style="display:block;width:100%;text-align:left;margin-bottom:10px"><div style="display:flex;gap:12px;align-items:center;padding:14px 16px 8px">${badgeHTML(a,true)}<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:17px">${esc(a.name)}</div><div class="small muted">${a.rate?a.rate+"% a year":"No interest"}</div></div><div style="text-align:right"><div class="num neg" style="font-size:20px;font-weight:700">${fmt(o)}</div><div class="small muted">total owed</div></div></div>${rows}${foot?`<div class="small muted" style="padding:10px 16px 14px">${foot}</div>`:""}</button>`;
     }
   }
-  return h+`<div class="btns"><button class="btn" data-act="adddebt">Add a debt</button></div><p class="hint" style="text-align:center">Spending on a card or PayLater adds to what you owe. Instalments are added each month. Interest is an estimate, so update the balance from your statement now and then.</p>`;
+  return h+`<div class="btns"><button class="btn" data-act="adddebt">Add a debt</button></div><p class="hint" style="text-align:center">Tap a card or loan to update it. Spending on a card adds to “clear soon”. BC instalments are added each month by themselves.</p>`;
 }
 
 /* ---------- sheets ---------- */
@@ -737,57 +754,66 @@ function sheetAccountForm(id,preset){
 function sheetDebtForm(a,preset){
   const base=a||preset,kind=base.kind,loan=isLoan(kind),m=thisYM();
   let plans=a?clone(a.plans||[]):[];
-  const lp=loan&&plans[0]||null;
+  plans.forEach(p=>{if(p.total&&p.end)p.now=Math.max(1,p.total-mDiff(m,p.end));});
+  const lp=loan?(plans[0]||{id:"loan",name:"Instalment",monthly:0,from:m}):null;
   const linked=a?items().find(i=>i.payTo===a.id&&itemActive(i,m)):null;
+  const setEnd=p=>{if(p.total>0&&p.now>0)p.end=addM(m,Math.max(0,p.total-p.now));};
+  const info=p=>{setEnd(p);if(!p.end||!p.monthly)return "";const more=Math.max(0,mDiff(m,p.end));return `${more} more after this month, ${RM(p.monthly*(more+1))} left including this month. Ends ${mLabel(p.end)}.`};
   const drawPlans=sh=>{const box=sh.querySelector("#cp");if(!box)return;
-    const info=p=>p.end&&p.monthly?`${Math.max(0,mDiff(m,p.end))} more months, ${RM(p.monthly*Math.max(0,mDiff(m,p.end)))} left`:"";
-    box.innerHTML=plans.length?`<div class="prow small muted" style="font-weight:600"><span>Name</span><span>Monthly</span><span>Last month</span><span></span></div>`+plans.map((p,i)=>`<div class="prow"><input data-k="name" data-i="${i}" value="${esc(p.name)}" placeholder="e.g. BC"><input data-k="monthly" data-i="${i}" class="num" inputmode="decimal" value="${p.monthly||""}"><input data-k="end" data-i="${i}" type="month" value="${p.end||""}"><button data-x="${i}" aria-label="Remove">×</button></div><div class="small muted" data-info="${i}" style="margin:0 0 8px">${info(p)}</div>`).join(""):`<p class="small muted" style="margin:0">None yet. Balance conversions (BC) and easy payment plans (EPP) are added to what you owe each month.</p>`;
-    box.querySelectorAll("input").forEach(x=>x.oninput=x.onchange=()=>{const p=plans[+x.dataset.i];p[x.dataset.k]=x.dataset.k==="monthly"?num(x.value):x.value;const el=box.querySelector(`[data-info="${x.dataset.i}"]`);if(el)el.textContent=info(p);});
+    box.innerHTML=plans.length?`<div class="prow small muted" style="font-weight:600"><span>Name</span><span>Monthly</span><span>Now</span><span>Of</span><span></span></div>`+plans.map((p,i)=>`<div class="prow"><input data-k="name" data-i="${i}" value="${esc(p.name)}" placeholder="e.g. BC"><input data-k="monthly" data-i="${i}" class="num" inputmode="decimal" value="${p.monthly||""}" placeholder="0.00"><input data-k="now" data-i="${i}" class="num" inputmode="numeric" value="${p.now||""}" placeholder="10"><input data-k="total" data-i="${i}" class="num" inputmode="numeric" value="${p.total||""}" placeholder="36"><button data-x="${i}" aria-label="Remove">${ic("x")}</button></div><div class="small muted" data-info="${i}" style="margin:0 4px 10px">${p.total?info(p):p.end?"Ends "+mLabel(p.end)+". Fill in Now and Of from your statement.":""}</div>`).join(""):`<p class="small muted" style="margin:0 4px">None yet. Add each balance conversion (BC) or easy payment plan (EPP). Your statement shows them like “10/36”: that's 10 now, of 36.</p>`;
+    box.querySelectorAll("input").forEach(x=>x.oninput=()=>{const p=plans[+x.dataset.i],k=x.dataset.k;p[k]=k==="name"?x.value:k==="monthly"?num(x.value):(parseInt(x.value)||0);const el=box.querySelector(`[data-info="${x.dataset.i}"]`);if(el)el.textContent=info(p);});
     box.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>{plans.splice(+x.dataset.x,1);drawPlans(sh);});};
   const kn=DEBT_KINDS.find(k=>k[0]===kind)[1];
+  const loanInfo=sh=>{const mo=num(sh.querySelector("#d-mo").value),now=parseInt(sh.querySelector("#d-now").value)||0,tot=parseInt(sh.querySelector("#d-tot").value)||0,el=sh.querySelector("#d-li");
+    if(!(mo>0&&tot>0&&now>0)){el.textContent="Your loan statement or app shows which instalment you're on, like 12 of 60.";return}
+    const more=Math.max(0,tot-now);el.textContent=`${RM(mo*(more+1))} left to pay including this month. Last payment ${mLabel(addM(m,more))}.`;};
   openSheet(`<h2>${a?esc(a.name):"New "+kn.toLowerCase()}</h2>
   <div style="display:flex;gap:12px;align-items:center;margin:0 4px 16px">${badgeHTML(base,true)}<div class="muted small">${esc(kn)}</div></div>
   <div class="field"><label>Name</label><input id="d-n" value="${esc(base.name||"")}" placeholder="e.g. ${kind==="card"?"Maybank Visa":kind==="bnpl"?"Atome":"Car loan"}"></div>
   ${loan?`
-  <div class="two"><div class="field"><label>Monthly instalment</label><input id="d-mo" class="num" inputmode="decimal" value="${lp?lp.monthly:(linked?amountFor(linked,m):"")}" placeholder="0.00"></div><div class="field"><label>Last payment month</label><input id="d-end" type="month" value="${lp&&lp.end||""}"></div></div>
-  <p class="small muted" style="margin:-6px 0 12px">Check your loan statement or app for the last instalment date.</p>
+  <div class="field"><label>Monthly instalment</label><input id="d-mo" class="big num" inputmode="decimal" value="${lp.monthly||(linked?amountFor(linked,m):"")}" placeholder="0.00"></div>
+  <div class="two"><div class="field"><label>This month's instalment number</label><input id="d-now" class="num" inputmode="numeric" value="${lp.now||""}" placeholder="e.g. 12"></div><div class="field"><label>Out of</label><input id="d-tot" class="num" inputmode="numeric" value="${lp.total||""}" placeholder="e.g. 60"></div></div>
+  <p class="hint" id="d-li" style="margin:-6px 4px 14px"></p>
   <div class="two"><div class="field"><label>Interest % a year</label><input id="d-r" class="num" inputmode="decimal" value="${a?a.rate||"":""}" placeholder="optional"></div><div class="field"><label>Due day</label><input id="d-due" inputmode="numeric" value="${linked&&linked.dueDay||""}" placeholder="e.g. 7"></div></div>
   `:`
-  <div class="field"><label>Owed now${kind==="card"?" (from your statement or app)":""}</label><input id="d-o" class="big num" inputmode="decimal" value="${a?stmtOwed(a):""}" placeholder="0.00"></div>
+  <div class="field"><label>${kind==="card"?"Balance not under BC or EPP":"Owed now, not counting instalments"}</label><input id="d-o" class="big num" inputmode="decimal" value="${a?nonBC(a):""}" placeholder="0.00"></div>
+  <p class="hint" style="margin:-6px 4px 14px">${kind==="card"?"This is the part that charges interest if you don't clear it. Don't include your BC balance.":"What you owe outside any instalment plans."}</p>
+  <div class="field"><label>${kind==="card"?"Balance conversions (BC) and EPP":"Instalments"}</label><div id="cp"></div><button class="linkbtn" id="cp-add" style="margin-top:4px">${ic("plus")} Add a BC or instalment</button></div>
   <div class="two"><div class="field"><label>Interest % a year</label><input id="d-r" class="num" inputmode="decimal" value="${a?a.rate:(kind==="card"?18:0)}"></div><div class="field"><label>Due day</label><input id="d-due" inputmode="numeric" value="${linked&&linked.dueDay||""}" placeholder="e.g. 24"></div></div>
-  <div class="field"><label>I usually pay each month</label><input id="d-pay" class="num" inputmode="decimal" value="${linked?amountFor(linked,m):""}" placeholder="optional"></div>
-  <div class="field"><label>${kind==="card"?"Instalment plans (BC / EPP)":"Instalments"}</label><div id="cp"></div><button class="linkbtn" id="cp-add" style="margin-top:6px">Add an instalment plan</button></div>`}
+  <div class="field"><label>I usually pay each month</label><input id="d-pay" class="num" inputmode="decimal" value="${linked?amountFor(linked,m):""}" placeholder="optional"></div>`}
   <div class="toggle"><span>Put the monthly payment in my plan<small>So the money is set aside each month</small></span><span class="sw ${!a||linked?"on":""}" id="d-plan"></span></div>
   <button class="btn" id="d-ok">${a?"Save":"Add debt"}</button>
-  ${a?`<div class="btns">${!loan?`<button class="btn ghost" id="d-int">Add an interest or late charge</button>`:""}<button class="btn danger" id="d-del">Remove</button></div>`:""}
-  ${kind==="card"?`<p class="hint">Cards usually charge 15–18% a year on what isn't paid in full.</p>`:kind==="bnpl"?`<p class="hint">PayLater usually has no interest, but late fees apply.</p>`:`<p class="hint">What you owe is worked out from the instalments left.</p>`}`,sh=>{
+  ${a?`<div class="btns">${!loan?`<button class="btn ghost" id="d-int">Add an interest or late charge</button>`:""}<button class="btn danger" id="d-del">Remove</button></div>`:""}`,sh=>{
     bindSw(sh);drawPlans(sh);
-    const add=sh.querySelector("#cp-add");if(add)add.onclick=()=>{plans.push({id:rid(),name:"",monthly:0,end:addM(m,12),from:m});drawPlans(sh);};
+    if(loan){["#d-mo","#d-now","#d-tot"].forEach(s=>sh.querySelector(s).addEventListener("input",()=>loanInfo(sh)));loanInfo(sh);}
+    const add=sh.querySelector("#cp-add");if(add)add.onclick=()=>{plans.push({id:rid(),name:kind==="card"?"BC":"",monthly:0,from:m});drawPlans(sh);};
     sh.querySelector("#d-ok").onclick=()=>{
       const name=sh.querySelector("#d-n").value.trim()||prov(base)[1];
       const o=a||{id:rid(),type:"debt",kind,provider:base.provider,opening:0,plans:[]};
       o.name=name;o.rate=num(sh.querySelector("#d-r").value);
       const due=parseInt(sh.querySelector("#d-due").value)||null;
       let pay=0;
-      if(loan){const mo=num(sh.querySelector("#d-mo").value),end=sh.querySelector("#d-end").value;pay=mo;
-        o.plans=mo>0?[Object.assign({id:"loan",name:"Instalment",from:(lp&&lp.from)||m},{monthly:mo,end:end||null})]:[];
+      if(loan){
+        const mo=num(sh.querySelector("#d-mo").value),now=parseInt(sh.querySelector("#d-now").value)||0,tot=parseInt(sh.querySelector("#d-tot").value)||0;pay=mo;
+        const p=Object.assign({},lp,{monthly:mo,now,total:tot,from:lp.from||m});setEnd(p);if(!(tot>0&&now>0))p.end=lp.end||null;
+        o.plans=mo>0&&p.end?[p]:[];
         if(!a)accounts().push(o);
-        if(!a){o.opening=0;}
+        o.opening=r2((o.opening||0)+(-bcDue(o)-accBalance(o)));
       }else{
-        o.plans=plans.filter(p=>p.monthly>0).map(p=>Object.assign({from:m},p));
+        o.plans=plans.filter(p=>p.monthly>0).map(p=>{setEnd(p);return Object.assign({from:m},p)}).filter(p=>p.end);
         if(!a)accounts().push(o);
-        const v=-Math.abs(num(sh.querySelector("#d-o").value));o.opening=r2((o.opening||0)+(v-accBalance(o)));
+        setNonBC(o,num(sh.querySelector("#d-o").value));
         pay=num(sh.querySelector("#d-pay").value);
       }
       const want=sh.querySelector("#d-plan").classList.contains("on")&&pay>0;
-      if(want){if(linked){if(pay!==amountFor(linked,m)){linked.amounts=(linked.amounts||[]).filter(e=>e.from<m);linked.amounts.push({from:m,amount:pay});}linked.dueDay=due;linked.name=linked.name||name;}
+      if(want){if(linked){if(pay!==amountFor(linked,m)){linked.amounts=(linked.amounts||[]).filter(e=>e.from<m);linked.amounts.push({from:m,amount:pay});}linked.dueDay=due;}
         else items().push({id:rid(),name:name+(loan?"":" payment"),group:"debt",kind:"fixed",amounts:[{from:m,amount:pay}],dueDay:due,start:m,payTo:o.id,category:null,payFrom:null,note:""});}
       else if(linked&&!sh.querySelector("#d-plan").classList.contains("on"))linked.end=m;
       commit();closeSheet();toast(a?"Saved":name+" added");
     };
     const it=sh.querySelector("#d-int");if(it)it.onclick=()=>{
-      const est=r2(stmtOwed(a)*(a.rate||0)/1200);
-      openSheet(`<h2>Interest or late charge</h2><div class="field"><label>Amount on your statement</label><input id="ic-a" class="big num" inputmode="decimal" value="${est||""}"></div><p class="hint">Estimate at ${a.rate||0}% a year: ${RM(est)}.</p><div class="btns"><button class="btn" id="ic-ok">Add charge</button></div>`,s2=>{
+      const est=r2(nonBC(a)*(a.rate||0)/1200);
+      openSheet(`<h2>Interest or late charge</h2><div class="field"><label>Amount on your statement</label><input id="ic-a" class="big num" inputmode="decimal" value="${est||""}"></div><p class="hint">Estimate at ${a.rate||0}% a year on ${RM(nonBC(a))}: ${RM(est)}.</p><div class="btns"><button class="btn" id="ic-ok">Add charge</button></div>`,s2=>{
         s2.querySelector("#ic-ok").onclick=()=>{const v=num(s2.querySelector("#ic-a").value);if(v<=0)return;ensureCat("Interest & charges","expense","debt","trending-down");putTx({id:rid(),type:"expense",amount:v,account:a.id,category:"Interest & charges",note:"",date:todayStr(),created:Date.now()});commit();closeSheet();toast("Charge added");};
       });
     };
@@ -799,10 +825,10 @@ function removeAccount(a){
   ask("Remove "+esc(a.name)+"?","It has no records, so nothing else changes.","Remove",()=>{S().accounts=accounts().filter(z=>z.id!==a.id);items().forEach(i=>{if(i.payFrom===a.id)i.payFrom=null;if(i.payTo===a.id)i.end=thisYM();});goals().forEach(g=>{if(g.account===a.id)g.account=null});commit();},true);
 }
 function sheetBalances(){
-  openSheet(`<h2>Update balances</h2><p class="muted small" style="margin-top:-8px">Type what's in each account right now. For cards and PayLater, type what you owe.</p>
-  ${accounts().filter(a=>!(a.type==="debt"&&isLoan(a.kind))).map(a=>`<div class="field"><label style="display:flex;align-items:center;gap:8px">${esc(a.name)}${a.type==="debt"?", owed":""}</label><input class="num" inputmode="decimal" data-acc="${esc(a.id)}" value="${a.type==="debt"?stmtOwed(a):accBalance(a)}"></div>`).join("")}
+  openSheet(`<h2>Update balances</h2><p class="muted small" style="margin:-8px 4px 14px">Type what's in each account right now. For cards and PayLater, type what you owe outside any BC or instalment plan.</p>
+  ${accounts().filter(a=>!(a.type==="debt"&&isLoan(a.kind))).map(a=>`<div class="field"><label style="display:flex;align-items:center;gap:8px">${esc(a.name)}${a.type==="debt"?((a.plans||[]).length?", owed outside BC":", owed"):""}</label><input class="num" inputmode="decimal" data-acc="${esc(a.id)}" value="${a.type==="debt"?nonBC(a):accBalance(a)}"></div>`).join("")}
   <button class="btn" id="b-ok">Save balances</button>`,sh=>{
-    sh.querySelector("#b-ok").onclick=()=>{sh.querySelectorAll("[data-acc]").forEach(i=>{const a=acc(i.dataset.acc);let v=num(i.value);if(a.type==="debt")v=-Math.abs(v);a.opening=r2((a.opening||0)+(v-accBalance(a)));});delete S().needBal;commit();closeSheet();toast("Balances saved");};
+    sh.querySelector("#b-ok").onclick=()=>{sh.querySelectorAll("[data-acc]").forEach(i=>{const a=acc(i.dataset.acc);const v=num(i.value);if(a.type==="debt")setNonBC(a,v);else a.opening=r2((a.opening||0)+(v-accBalance(a)));});delete S().needBal;commit();closeSheet();toast("Balances saved");};
   });
 }
 

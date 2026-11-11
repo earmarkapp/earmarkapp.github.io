@@ -684,10 +684,61 @@ function vDebts(){
       else if(po&&po.never)foot=`<span class="neg">At ${fmt(mo)} a month this keeps growing. Pay more than the interest and instalments.</span>`;
       else if(!loan&&hasPlan)foot="";
       else if(po)foot=`Paying ${fmt(mo)} a month, cleared by about ${mLabel(po.done)}${po.interest>1?`, around ${RM(po.interest)} in interest`:""}.`;
-      h+=`<button class="group" data-act="account" data-id="${esc(a.id)}" style="display:block;width:100%;text-align:left;margin-bottom:10px"><div style="display:flex;gap:12px;align-items:center;padding:14px 16px 8px">${badgeHTML(a,true)}<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:17px">${esc(a.name)}</div><div class="small muted">${a.rate?a.rate+"% a year":"No interest"}</div></div><div style="text-align:right"><div class="num neg" style="font-size:20px;font-weight:700">${fmt(o)}</div><div class="small muted">total owed</div></div></div>${rows}${foot?`<div class="small muted" style="padding:10px 16px 14px">${foot}</div>`:""}</button>`;
+      h+=`<button class="group" data-act="${loan?"account":"debtview"}" data-id="${esc(a.id)}" style="display:block;width:100%;text-align:left;margin-bottom:10px"><div style="display:flex;gap:12px;align-items:center;padding:14px 16px 8px">${badgeHTML(a,true)}<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:17px">${esc(a.name)}</div><div class="small muted">${a.rate?a.rate+"% a year":"No interest"}</div></div><div style="text-align:right"><div class="num neg" style="font-size:20px;font-weight:700">${fmt(o)}</div><div class="small muted">total owed</div></div></div>${rows}${foot?`<div class="small muted" style="padding:10px 16px 14px">${foot}</div>`:""}</button>`;
     }
   }
-  return h+`<div class="btns"><button class="btn" data-act="adddebt">Add a debt</button></div><p class="hint" style="text-align:center">Tap a card or loan to update it. Spending on a card adds to “clear soon”. BC instalments are added each month by themselves.</p>`;
+  return h+`<div class="btns"><button class="btn" data-act="adddebt">Add a debt</button></div><p class="hint" style="text-align:center">Tap a card to see your payoff plan month by month. Spending on a card adds to “clear soon”. BC instalments are added each month by themselves.</p>`;
+}
+
+function cardSchedule(a,months){
+  const r=(a.rate||0)/1200,start=thisYM();
+  const linked=items().filter(i=>i.payTo===a.id);
+  let nb=nonBC(a),rows=[];
+  for(let k=0;k<months;k++){
+    const m=addM(start,k);
+    const lines=planLines(m).filter(l=>l.payTo===a.id);
+    const paid=k===0&&lines.length&&lines.every(l=>l.paid);
+    const pay=paid?0:r2(lines.filter(l=>!l.paid).reduce((s,l)=>s+l.amount,0));
+    const bc=k===0?bcDue(a):bcMonthly(a,m);
+    let interest=0;
+    if(k>0&&nb>0){interest=r2(nb*r);nb=r2(nb+interest);}
+    nb=r2(nb-(pay-bc));
+    const bcLeft=r2((a.plans||[]).reduce((s,p)=>s+(p.end&&p.end>m?p.monthly*mDiff(m,p.end):0),0));
+    rows.push({m,pay,bc,interest,nb,bcLeft,paid,editable:linked.length===1&&!paid,lineKey:lines[0]&&lines[0].key});
+    if(nb<=0.005&&bcLeft<=0.005&&k>0)break;
+  }
+  return rows;
+}
+function sheetDebtView(id){
+  const a=acc(id);if(!a)return;
+  if(isLoan(a.kind))return sheetAccountForm(id);
+  const rows=cardSchedule(a,36),m=thisYM();
+  const clear=rows.find(r=>r.nb<=0.005),overpay=rows.find(r=>r.nb<-0.005);
+  const linked=items().filter(i=>i.payTo===a.id&&itemActive(i,m));
+  let h=`<div style="display:flex;gap:12px;align-items:center;margin:0 4px 14px">${badgeHTML(a,true)}<div style="flex:1"><div style="font-size:20px;font-weight:700">${esc(a.name)}</div><div class="small muted">${a.rate?a.rate+"% a year on the non-BC part":"No interest"}</div></div></div>`;
+  h+=`<div class="group"><div class="pair"><div><div class="l">Non-BC now</div><div class="v ${nonBC(a)>0?"neg":""}">${fmt(nonBC(a))}</div></div><div><div class="l">BC left</div><div class="v">${fmt(unbilled(a)+bcDue(a))}</div></div></div></div>`;
+  if(!linked.length)h+=`<p class="hint">Add how much you pay each month (Edit card details) to see your payoff plan.</p>`;
+  else{
+    h+=`<p class="hint">${clear&&nonBC(a)>0?`With this plan the non-BC part is cleared in <b>${mLabel(clear.m)}</b>.`:nonBC(a)<=0?"No non-BC balance. Payments go to your BC.":"At this plan the non-BC part isn't cleared within 3 years. Pay more in some months."}${overpay?` From ${mLabel(overpay.m)} you're paying more than needed, so you could lower the payment or save the extra to settle the BC early.`:""} Tap an amount to change what you'll pay that month.</p>`;
+    h+=`<div class="ghead" style="margin-top:16px"><h2 style="font-size:17px">Month by month</h2></div><div class="group">`;
+    h+=rows.map(r=>rowH({tag:"div",title:mLabel(r.m),sub:`BC ${fmt(r.bc)}${r.interest>0?`, interest ${fmt(r.interest)}`:""}, then non-BC ${r.nb>0?`<span class="neg">${fmt(r.nb)}</span>`:"cleared"}`,right:r.paid?`<span class="chip ok">Paid</span>`:r.editable?`<button class="paybtn num" data-dv="${r.m}">${fmt(r.pay)}</button>`:`<span class="amt">${fmt(r.pay)}</span>`})).join("");
+    h+=`</div><p class="hint">Assumes no new spending on this card. New spending is added to non-BC when you record it.</p>`;
+  }
+  h+=`<div class="btns"><button class="btn ghost" id="dv-edit">Edit card details</button>${linked.length?"":""}</div>`;
+  openSheet(h,sh=>{
+    sh.querySelector("#dv-edit").onclick=()=>sheetAccountForm(id);
+    sh.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{
+      const mm=b.dataset.dv,it=linked[0],cur=findLine(mm,it.id);
+      openSheet(`<h2>Pay ${esc(a.name)}</h2><p class="muted small" style="margin:-10px 4px 14px">${mLabel(mm)}</p><div class="field"><label>Amount you'll pay</label><input id="dv-a" class="big num" inputmode="decimal" value="${cur?cur.amount:amountFor(it,mm)}"></div><div class="toggle"><span>Also for the months after<small>Otherwise only ${MONTHS[+mm.slice(5)-1]} changes</small></span><span class="sw" id="dv-f"></span></div><div class="btns"><button class="btn" id="dv-ok">Save</button><button class="btn ghost" id="dv-back">Back</button></div>`,s2=>{
+        bindSw(s2);
+        s2.querySelector("#dv-back").onclick=()=>sheetDebtView(id);
+        s2.querySelector("#dv-ok").onclick=()=>{const v=num(s2.querySelector("#dv-a").value);
+          if(s2.querySelector("#dv-f").classList.contains("on")){it.amounts=(it.amounts||[]).filter(e=>e.from<mm);it.amounts.push({from:mm,amount:v});for(const k of Object.keys(D.months))if(k>=mm&&D.months[k].lines&&D.months[k].lines[it.id]&&!D.months[k].lines[it.id].paid)delete D.months[k].lines[it.id].amount;}
+          else{const l=findLine(mm,it.id);if(l)setLine(mm,l,{amount:v});}
+          commit();sheetDebtView(id);toast("Plan updated");};
+      });
+    });
+  });
 }
 
 /* ---------- sheets ---------- */
@@ -1239,6 +1290,7 @@ document.addEventListener("click",e=>{
     case "adddebt":sheetAddAccount("debt");break;
     case "account":{const x=acc(ds.id);if(x)sheetAccountForm(x.id);break;}
     case "balances":sheetBalances();break;
+    case "debtview":sheetDebtView(ds.id);break;
     case "cats":sheetCats("expense");break;
     case "cat":sheetCat(ds.n||null,ds.t);break;
     case "groups":sheetGroups();break;

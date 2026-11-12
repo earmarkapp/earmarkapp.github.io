@@ -175,20 +175,19 @@ nav.tabs .plus svg{width:24px;height:24px;stroke-width:2.4}
 .rec-note input{width:100%;padding:11px 14px;border-radius:10px;border:0;background:var(--card)}
 html,body,button,input,select,label{touch-action:manipulation}
 .rec .cat{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-.tour{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 22px calc(env(safe-area-inset-bottom) + 18px)}
-.tour.on{display:flex}
-.tour-top{display:flex;justify-content:space-between;align-items:center;min-height:36px}
-.tour-top .skip{font-size:16px;color:var(--muted);padding:6px 4px}
-.tour-body{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:460px;margin:0 auto;width:100%}
-.tour-ic{width:84px;height:84px;border-radius:22px;display:flex;align-items:center;justify-content:center;color:#fff;margin-bottom:26px}
-.tour-ic svg{width:44px;height:44px}
-.tour h2{font-size:28px;font-weight:700;margin:0 0 12px;line-height:1.15}
-.tour p{font-size:17px;line-height:1.5;color:var(--ink2,#3C3C43);margin:0 0 10px}
-.tour ul{margin:6px 0 0;padding-left:20px;font-size:16px;line-height:1.55;color:var(--ink2,#3C3C43)}
-.tour-dots{display:flex;gap:7px;justify-content:center;margin:18px 0}
-.tour-dots i{width:7px;height:7px;border-radius:4px;background:var(--fill)}
-.tour-dots i.on{background:var(--ink);width:20px}
-.tour-nav{display:grid;grid-template-columns:1fr 2fr;gap:10px;max-width:460px;margin:0 auto;width:100%}
+.tour{position:fixed;inset:0;z-index:60;display:none}
+.tour.on{display:block}
+.g-hole{position:fixed;border-radius:14px;box-shadow:0 0 0 2px #fff,0 0 0 9999px rgba(0,0,0,.6);transition:all .3s cubic-bezier(.2,.9,.25,1);pointer-events:none}
+.g-hole.none{left:50%!important;top:45%!important;width:0!important;height:0!important;box-shadow:0 0 0 9999px rgba(0,0,0,.6)}
+.g-tip{position:fixed;background:var(--card);color:var(--ink);border-radius:16px;padding:16px 16px 12px;box-shadow:0 10px 40px rgba(0,0,0,.25);transition:top .3s,left .3s}
+.g-tip h3{margin:0 0 6px;font-size:18px;font-weight:700}
+.g-tip p{margin:0;font-size:15.5px;line-height:1.45;color:var(--ink2,#3C3C43)}
+.g-foot{display:flex;align-items:center;gap:8px;margin-top:14px}
+.g-foot .n{flex:1;font-size:13px;color:var(--muted)}
+.g-foot button{padding:9px 14px;border-radius:10px;font-weight:600;font-size:15px}
+.g-foot .nx{background:var(--ink);color:var(--bg)}
+.g-foot .bk{background:var(--fill)}
+.g-skip{position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:14px;color:#fff;font-size:16px;font-weight:600;padding:8px 12px;background:rgba(0,0,0,.35);border-radius:18px}
 .wn-v{display:flex;justify-content:space-between;align-items:baseline;margin:0 4px 8px}
 .wn-list{margin:0 0 6px;padding:12px 16px 12px 34px;background:var(--card);border-radius:12px;font-size:15.5px;line-height:1.5}
 .wn-list li{margin:3px 0}
@@ -583,7 +582,7 @@ function vMore(){
   ${moreRow("credit-card","#FF3B30","Debts",totalDebt()>0?`${RM(totalDebt())} owed`:"Credit cards, PayLater, loans","page",'data-p="debts"')}
   ${moreRow("wallet","#007AFF","Accounts",`${accounts().length} account${accounts().length===1?"":"s"}`,"page",'data-p="accounts"')}</div>`;
   h+=`<div class="ghead"><h2>Setup</h2></div><div class="group">${moreRow("briefcase","#34C759","Expected income","Salary, bonus, money from family","incomes")}${moreRow("calendar-check","#5856D6","Monthly bills","Bills, loans, budgets","items")}${moreRow("tag","#FF9500","Categories","Icons and groups","cats")}${moreRow("zap","#FFCC00","Quick record",S().startOn==="spent"?"Opens straight to recording":"Record even faster","quick")}${moreRow("coins","#8E8E93","Currency",esc(CUR()),"currency")}</div>`;
-  h+=`<div class="ghead"><h2>Help</h2></div><div class="group">${moreRow("sparkles","#1F9D55","App tour","See what Earmark can do","tour")}${moreRow("gift","#FF9500","What's new",`Version ${APP_VERSION}`,"whatsnew")}</div>`;
+  h+=`<div class="ghead"><h2>Help</h2></div><div class="group">${moreRow("sparkles","#1F9D55","App walkthrough","See how everything works","tour")}${moreRow("gift","#FF9500","What's new",`Version ${APP_VERSION}`,"whatsnew")}</div>`;
   h+=`<div class="ghead"><h2>Your data</h2></div><div class="group">${moreRow("save","#30B0C7","Save a backup file",S().lastBackup?"Last saved "+dLabel(dstr(new Date(S().lastBackup))):"Use it to move to a new phone","backup")}${moreRow("folder-open","#30B0C7","Restore from a backup","","import")}${moreRow("trash-2","#FF3B30","Delete everything on this phone","","wipe")}</div><p class="hint">Your records are stored only on this phone. Nothing is sent anywhere.</p>`;
   if(CONFIG.supportUrl)h+=`<div class="btns"><a class="btn ghost" href="${esc(CONFIG.supportUrl)}" target="_blank" rel="noopener">${ic("coffee")} ${esc(CONFIG.supportLabel)}</a></div>`;
   h+=`<div class="foot">${esc(CONFIG.appName)} ${APP_VERSION}, made by <a href="${esc(CONFIG.madeByUrl)}" target="_blank" rel="noopener">${esc(CONFIG.madeBy)}</a></div>`;
@@ -1457,33 +1456,65 @@ $("#filein").addEventListener("change",e=>{const f=e.target.files&&e.target.file
 
 
 /* ---------- version, what's new, tour ---------- */
-const APP_VERSION="1.4.0";
+const APP_VERSION="1.4.1";
 const CHANGELOG=[
- {v:"1.4.0",date:"2026-11-12",items:["App tour that shows every feature. Watch it again any time from More.","This What's new message after each update, with past versions."]},
+ {v:"1.4.1",date:"2026-11-12",items:["The walkthrough now takes you to each screen and highlights the actual buttons, step by step."]},
+ {v:"1.4.0",date:"2026-11-12",items:["App walkthrough that takes you through each screen and shows you how it works. Watch it again any time from More.","This What's new message after each update, with past versions."]},
  {v:"1.3.0",date:"2026-11-12",items:["Minimum payment for each card. The payoff plan always pays at least the minimum.","When paying a card, pick the payoff plan amount or the minimum.","Tap a debt to see how Total owed adds up: outside BC, this month's BC, and BC for later months.","Fixes: buttons on the edit screen no longer cut off on small phones."]},
  {v:"1.2.0",date:"2026-11-11",items:["BC fund kept apart from the rest of your savings, with progress towards the next settlement.","Settle BC early: choose which BC and which account it's paid from.","Spending categories in folders by group, plus Favourites at the top.","Can spend this month shows how it's worked out, and Home lists all bills not paid yet.","Every pop-up has a close button.","Transfers ask what they were for, with icons.","No more zooming when you double tap."]},
  {v:"1.1.0",date:"2026-11-11",items:["Credit cards split into balance outside BC and BC instalments.","Card payoff plan: clear the balance outside BC, then save to settle BC early.","Loans: settle-in-full amount and how much you'd save."]},
  {v:"1.0.0",date:"2026-11-11",items:["First release: record spending in a few taps, plan monthly bills, savings goals, debts and backups."]}
 ];
-const TOUR=[
- {i:"wallet",c:"#1F9D55",t:"Welcome to Earmark",p:"Earmark shows what you can safely spend after setting money aside for bills, savings and debts.",l:["Everything stays on this phone. No sign-up.","This tour takes about a minute. You can skip it and watch it again from More."]},
- {i:"plus",c:"#007AFF",t:"Record in seconds",p:"Tap the + button at the bottom, type the amount, pick a category, then Save.",l:["Your favourites and most used categories are at the top.","Other categories are in folders by group.","Press and hold a category to add it to Favourites.","Tap the account, date or note above the categories to change them."]},
- {i:"house",c:"#34C759",t:"Home",p:"Can spend this month is the money in your bank, e-wallet and cash, minus what's already set aside.",l:["Under it you can see how it adds up: bills not paid yet, budgets left and goals.","Bills this month lists everything not paid yet, with a Pay button.","Tap the eye to hide all amounts."]},
- {i:"calendar-check",c:"#5856D6",t:"Plan your month",p:"The Plan tab lists your monthly bills, budgets and expected income.",l:["Tap Pay on a bill to record the payment in one step.","Budgets, like Food, show how much is left.","Set up bills and expected income in More."]},
- {i:"target",c:"#FF9500",t:"Savings goals",p:"Save for things like a trip or a new phone.",l:["Set a target and a monthly amount.","Money for goals is set aside, so it's not counted in what you can spend."]},
- {i:"credit-card",c:"#FF3B30",t:"Debts",p:"Credit cards, PayLater and loans, all in one place. Find it in More.",l:["Cards show the balance outside BC and BC left.","Add each statement's minimum payment so you never pay less.","Spending you record on a card updates its balance by itself."]},
- {i:"piggy-bank",c:"#AF52DE",t:"Card payoff plan",p:"Set a monthly budget for your cards. Earmark works out what to pay each card.",l:["Pays the BC and minimums first, then clears the balance outside BC.","After that, it saves into a BC fund to settle BC early.","Month by month shows the whole plan."]},
- {i:"arrow-left-right",c:"#30B0C7",t:"Accounts and transfers",p:"Add your bank, e-wallets, cash and savings. Use Transfer to move money between them.",l:["Paying a card or loan is a transfer, so you'll owe less.","Pick what the transfer was for, like Card payment or Savings."]},
- {i:"save",c:"#8E8E93",t:"Keep a backup",p:"Your records live only on this phone. Save a backup file now and then, from More.",l:["Use it to move to a new phone.","After an update, close the app and open it again to get the newest version."]}
+const goTab=t=>{closeRec();closeSheet();UI.tab=t;UI.page=null;render();window.scrollTo(0,0);};
+const goPage=pg=>{closeRec();closeSheet();UI.tab="more";UI.page=pg;render();window.scrollTo(0,0);};
+const findEl=(sel,txt)=>[...document.querySelectorAll(sel)].find(e=>e.offsetParent!==null&&(!txt||e.textContent.includes(txt)))||null;
+const GUIDE=[
+ {go:()=>goTab("home"),t:"Welcome to Earmark",p:"Let's take a quick walk through the app. Tap Next to go to each part, or Skip any time. You can watch this again from More."},
+ {go:()=>goTab("home"),s:".bal",t:"Total balance",p:"All the money in your bank, e-wallets, cash and savings. Tap a row below it to see each account."},
+ {go:()=>goTab("home"),s:".bal.spend",up:".group",t:"Can spend this month",p:"What's left after bills not paid yet, budgets and goals. The rows under it show how it adds up."},
+ {go:()=>goTab("home"),s:".ghead",txt:"Bills this month",next:1,t:"Bills this month",p:"Everything you still need to pay this month. Tap Pay to record a payment in one step."},
+ {go:()=>goTab("home"),s:'[data-act="hide"]',t:"Hide amounts",p:"Tap the eye to hide all amounts, for example when someone is looking at your screen."},
+ {go:()=>goTab("home"),s:"nav .plus",t:"Record money in or out",p:"Tap + any time to record spending, money received or a transfer. Let's open it."},
+ {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .seg",t:"Spent, Received or Transfer",p:"Pick what you're recording. Use Transfer to move money between your accounts or to pay a card."},
+ {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .keys",t:"Type the amount",p:"Type the amount, then tap Save. That's it."},
+ {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .rec-cats",t:"Pick a category",p:"Favourites or most used are at the top. The rest are in folders by group. Press and hold a category to add it to Favourites."},
+ {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .rec-meta",t:"Account, date and note",p:"Tap these to change which account paid, the date, or to add a note."},
+ {go:()=>goTab("plan"),s:'nav [data-tab="plan"]',t:"Plan",p:"Your monthly bills, budgets and expected income live here."},
+ {go:()=>goTab("plan"),s:"#app .pair",up:".group",t:"Left to pay",p:"How much of this month's bills is left, and what's left of your income after bills."},
+ {go:()=>goTab("plan"),s:"#app .empty",t:"Start your plan",p:"Your plan is empty for now. Add your income and monthly bills from More, under Set up your month. We'll show you where."},
+ {go:()=>goTab("plan"),s:'#app .tick:not(.on)',up:".row",t:"Pay a bill",p:"Tap the circle when you pay a bill. It records the payment and ticks it off. Tap the bill itself to change its amount."},
+ {go:()=>goTab("plan"),s:"#app .monthbar",t:"Other months",p:"Use the arrows to look at next month or past months."},
+ {go:()=>goTab("records"),s:'nav [data-tab="records"]',t:"Records",p:"Everything you've recorded, month by month."},
+ {go:()=>goTab("records"),s:"#app .seg",t:"Where it went",p:"Switch to Where it went to see your spending by group and category."},
+ {go:()=>goTab("more"),s:'[data-p="goals"]',t:"Savings goals",p:"Save for a trip, a new phone or an emergency fund. Goal money is set aside, so it's not counted in what you can spend."},
+ {go:()=>goTab("more"),s:'[data-p="debts"]',t:"Debts",p:"Credit cards, PayLater and loans. Let's take a look."},
+ {go:()=>goPage("debts"),s:'#app [data-act="debtview"]',t:"Your debts",p:"Tap a debt to see how much you owe, the minimum payment, and to settle BC early. Spending you record on a card updates it by itself."},
+ {go:()=>goPage("debts"),s:'#app [data-act="adddebt"]',t:"Add a debt",p:"Add a credit card, PayLater or loan. For cards, add each BC and the minimum payment from your statement."},
+ {go:()=>goPage("debts"),s:"#app .ghead",txt:"Card payoff plan",next:1,t:"Card payoff plan",p:"Set a monthly budget for your cards. Earmark pays each card's BC and minimum, clears the balance outside BC, then saves to settle BC early."},
+ {go:()=>goTab("more"),s:'[data-p="accounts"]',t:"Accounts",p:"Your bank, e-wallets, cash and savings. Update their balances here."},
+ {go:()=>goTab("more"),s:'[data-act="items"]',up:".group",t:"Set up your month",p:"Add your expected income, monthly bills and budgets, and edit your categories."},
+ {go:()=>goTab("more"),s:'[data-act="backup"]',t:"Keep a backup",p:"Your records live only on this phone. Save a backup file now and then, so you can move to a new phone."},
+ {go:()=>goTab("more"),s:'[data-act="tour"]',t:"That's it",p:"Watch this walkthrough again here any time. What's new shows the latest updates."}
 ];
-let _tour=0;
-function drawTour(){const el=$("#tour"),t=TOUR[_tour],last=_tour===TOUR.length-1;
-  el.innerHTML=`<div class="tour-top"><span class="small muted">${_tour+1} of ${TOUR.length}</span><button class="skip" data-tour="end">${last?"":"Skip"}</button></div>
-  <div class="tour-body"><div class="tour-ic" style="background:${t.c}">${ic(t.i)}</div><h2>${t.t}</h2><p>${t.p}</p><ul>${t.l.map(x=>`<li>${x}</li>`).join("")}</ul></div>
-  <div class="tour-dots">${TOUR.map((_,i)=>`<i class="${i===_tour?"on":""}"></i>`).join("")}</div>
-  <div class="tour-nav"><button class="btn ghost" data-tour="back" ${_tour?"":"style=\"visibility:hidden\""}>Back</button><button class="btn" data-tour="${last?"end":"next"}">${last?"Start using Earmark":"Next"}</button></div>`;}
-function openTour(){_tour=0;drawTour();$("#tour").classList.add("on");}
-function closeTour(){$("#tour").classList.remove("on");if(D){S().tourDone=true;save();}}
+let _g=0,_gDir=1;
+async function drawGuide(){
+  const el=$("#tour");let st=GUIDE[_g];if(!st){closeTour();return;}
+  st.go();await new Promise(r=>setTimeout(r,360));
+  let t=null;if(st.s){t=findEl(st.s,st.txt);if(t&&st.up)t=t.closest(st.up)||t;}
+  if(st.s&&!t){_g+=_gDir;if(_g<0)_g=0;return drawGuide();}
+  const t2=t&&st.next?t.nextElementSibling:null;
+  if(t){(t2||t).scrollIntoView({block:"center",behavior:"instant"});if(t2&&t.getBoundingClientRect().top<8)t.scrollIntoView({block:"start",behavior:"instant"});await new Promise(r=>setTimeout(r,60));}
+  const last=_g===GUIDE.length-1,vw=innerWidth,vh=innerHeight;
+  el.innerHTML=`<div class="g-hole ${t?"":"none"}"></div><div class="g-tip"><h3>${st.t}</h3><p>${st.p}</p><div class="g-foot"><span class="n">${last?"":`<button data-tour="end" style="padding:9px 0;color:var(--muted);font-weight:500">Skip</button>`}</span>${_g?`<button class="bk" data-tour="back">Back</button>`:""}<button class="nx" data-tour="${last?"end":"next"}">${last?"Done":"Next"}</button></div></div>`;
+  const hole=el.querySelector(".g-hole"),tip=el.querySelector(".g-tip"),tw=Math.min(360,vw-32);tip.style.width=tw+"px";
+  if(t){const r0=t.getBoundingClientRect(),r1=t2?t2.getBoundingClientRect():r0,r={left:Math.min(r0.left,r1.left),top:Math.min(r0.top,r1.top),width:Math.max(r0.right,r1.right)-Math.min(r0.left,r1.left),height:Math.max(r0.bottom,r1.bottom)-Math.min(r0.top,r1.top)},pd=6;const x=Math.max(4,r.left-pd),y=Math.max(4,r.top-pd),w=Math.min(vw-8,r.width+pd*2),h=Math.min(vh-8,r.height+pd*2);
+    Object.assign(hole.style,{left:x+"px",top:y+"px",width:w+"px",height:h+"px"});
+    const th=tip.offsetHeight;let top=y+h+12;if(top+th>vh-12)top=y-th-12;if(top<12)top=Math.max(12,vh-th-24);
+    tip.style.top=top+"px";tip.style.left=Math.max(16,Math.min(vw-tw-16,x+w/2-tw/2))+"px";}
+  else{tip.style.top=Math.max(20,vh/2-tip.offsetHeight/2)+"px";tip.style.left=(vw-tw)/2+"px";}
+}
+function openTour(){_g=0;_gDir=1;$("#tour").classList.add("on");drawGuide();}
+function closeTour(){$("#tour").classList.remove("on");$("#tour").innerHTML="";closeRec();goTab("home");if(D){S().tourDone=true;save();}}
 function sheetWhatsNew(all){
   const list=all?CHANGELOG:CHANGELOG.slice(0,1);
   openSheet(`<h2>${all?"All updates":"What's new"}</h2>${list.map(c=>`<div class="wn-v"><b>Version ${c.v}</b><span class="small muted">${dLabel(c.date)}</span></div><ul class="wn-list">${c.items.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`).join('<div style="height:10px"></div>')}
@@ -1498,7 +1529,7 @@ const h=location.hash;
 if(h.startsWith("#setup=")){try{history.replaceState(null,"",location.pathname+location.search)}catch(_){}decodeSetup(h).then(restoreJson).catch(()=>toast("That setup link didn't work"));}
 else if(h==="#spent"||h==="#received"){try{history.replaceState(null,"",location.pathname+location.search)}catch(_){}openRec(h==="#spent"?"expense":"income");}
 else if(D&&S().startOn==="spent")openRec("expense");
-if(!document.getElementById("tour")){const t=document.createElement("div");t.id="tour";t.className="tour";document.body.appendChild(t);t.addEventListener("click",e=>{const b=e.target.closest("[data-tour]");if(!b)return;const a=b.dataset.tour;if(a==="next"){_tour=Math.min(TOUR.length-1,_tour+1);drawTour();}else if(a==="back"){_tour=Math.max(0,_tour-1);drawTour();}else closeTour();});}
+if(!document.getElementById("tour")){const t=document.createElement("div");t.id="tour";t.className="tour";document.body.appendChild(t);t.addEventListener("click",e=>{const b=e.target.closest("[data-tour]");if(!b)return;const a=b.dataset.tour;if(a==="next"){_gDir=1;_g++;drawGuide();}else if(a==="back"){_gDir=-1;_g=Math.max(0,_g-1);drawGuide();}else closeTour();});}
 checkVersion();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(_){}
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});

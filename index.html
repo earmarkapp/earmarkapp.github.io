@@ -163,7 +163,8 @@ nav.tabs .plus svg{width:24px;height:24px;stroke-width:2.4}
 .rec-amt .v{font-family:var(--num);font-variant-numeric:tabular-nums;font-weight:700;font-size:50px;letter-spacing:-.02em;line-height:1.1}
 .rec-amt .v small{font-size:24px;color:var(--muted);font-weight:600;margin-right:4px}
 .rec[data-t=expense] .rec-amt .v{color:var(--out)} .rec[data-t=income] .rec-amt .v{color:var(--in)}
-.rec-meta{display:flex;gap:8px;overflow-x:auto;padding:8px 16px 10px;scrollbar-width:none;justify-content:center}
+.rec-meta{display:flex;gap:8px;overflow-x:auto;padding:8px 16px 10px;scrollbar-width:none}
+.rec-meta>:first-child{margin-left:auto}.rec-meta>:last-child{margin-right:auto}
 .rec-meta::-webkit-scrollbar{display:none}
 .mchip{position:relative;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:6px 12px;border-radius:9px;background:var(--card);font-weight:500;font-size:15px;flex:none}
 .mchip .badge{width:22px;height:22px;border-radius:6px;font-size:7.5px}
@@ -173,6 +174,7 @@ nav.tabs .plus svg{width:24px;height:24px;stroke-width:2.4}
 .rec-note{padding:0 16px 8px}
 .rec-note input{width:100%;padding:11px 14px;border-radius:10px;border:0;background:var(--card)}
 html,body,button,input,select,label{touch-action:manipulation}
+.rec .cat{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .fold-h{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:6px 4px 2px;font-size:13px;font-weight:600;color:var(--ink2)}
 .fold-h button{display:flex;align-items:center;gap:2px;color:var(--primary,#007AFF);font-weight:600;font-size:15px}
 .rec-cats{flex:1;overflow-y:auto;padding:4px 10px 10px;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;align-content:start}
@@ -669,7 +671,7 @@ function sheetDebtView(id){
   }else{
     const n=nonBC(a);
     h+=`<div class="kv"><span>${k==="card"?"Outside BC":"Owed outside instalments"}</span><b class="${n>0&&a.rate?"neg":""}">${fmt(n)}</b></div>`;
-    if(bcLeft(a)>0)h+=`<div class="kv"><span>${k==="card"?"BC left":"Instalments left"}</span><b>${fmt(bcLeft(a))}</b></div><div class="kv"><span class="muted">Due this month</span><b>${fmt(bcDue(a))}</b></div>`;
+    if(bcLeft(a)>0){const w=k==="card"?"BC":"Instalments";h+=`<div class="kv"><span>${w} this month, not paid yet</span><b>${fmt(bcDue(a))}</b></div><div class="kv"><span>${w} for later months</span><b>${fmt(unbilled(a))}</b></div><div class="kv"><span class="small muted">These add up to Total owed. The ${w==="BC"?"BC":"instalments"} for later months aren't billed yet, but you still owe them.</span></div>`;}
     if(n>0&&a.rate)h+=`<div class="kv"><span class="muted">Interest if not cleared</span><b>about ${fmt(n*a.rate/1200)}/month</b></div>`;
   }
   h+=`</div>`;
@@ -849,7 +851,7 @@ function drawRec(){
     const list=R.picking==="to"?accounts().filter(x=>x.id!==R.acc):recAccountsFor().filter(x=>R.type!=="transfer"||x.id!==R.to);
     body=`<div class="rec-lbl">${R.picking==="to"?"Move money to":R.type==="income"?"Money goes into":R.type==="transfer"?"Move money from":"Paid with"}</div><div class="rec-acc"><div class="group">${list.map(x=>rowH({data:`data-r="setacc" data-id="${esc(x.id)}"`,lead:badgeHTML(x),title:esc(x.name),sub:x.type==="debt"?"Owe "+fmt(owed(x)):fmt(accBalance(x)),right:(R.picking==="to"?R.to:R.acc)===x.id?`<span class="chev" style="color:var(--ink)">${ic("check")}</span>`:""})).join("")}${rowH({data:'data-r="newacc"',lead:icoHTML("plus","#8E8E93"),title:"Add an account"})}</div></div>`;
   }else if(R.type==="transfer"){
-    const tc=cats().filter(c=>c.type==="transfer");
+    const tc=cats().filter(c=>c.type==="transfer"&&(c.name!=="BC fund"||(CP()&&CP().on)||R.cat==="BC fund"));
     body=`<div class="rec-acc"><div class="group">${rowH({data:'data-r="pick" data-w="from"',lead:a?badgeHTML(a):icoHTML("wallet","#8E8E93"),title:a?esc(a.name):"Choose",sub:"From",chev:true})}${rowH({data:'data-r="pick" data-w="to"',lead:to?badgeHTML(to):icoHTML("wallet","#8E8E93"),title:to?esc(to.name):"Choose",sub:"To",chev:true})}</div><div class="rec-lbl" style="padding:14px 4px 6px">What was it for?</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">${tc.map(c=>`<button class="cat ${c.name===R.cat?"on":""}" data-r="cat" data-n="${esc(c.name)}">${icoHTML(c.icon,c.color||"#8E8E93")}<span>${esc(c.name)}</span></button>`).join("")}</div></div>`;
   }else{
     const f=usage(R.type),all=cats().filter(c=>c.type===R.type);
@@ -873,7 +875,7 @@ function drawRec(){
   const canSave=num(R.amt)>0&&(R.type==="transfer"?(R.acc&&R.to&&R.acc!==R.to):(R.cat&&R.acc));
   el.innerHTML=`<div class="rec-top"><button class="round" data-r="close" aria-label="Close">${ic("x")}</button><div class="seg">${[["expense","Spent"],["income","Received"],["transfer","Transfer"]].map(([v,n])=>`<button data-r="type" data-v="${v}" class="${R.type===v?"on":""}">${n}</button>`).join("")}</div></div>
   <div class="rec-amt"><div class="v num"><small>${CUR()}</small>${esc(amtTxt)}</div></div>
-  <div class="rec-meta">${R.type!=="transfer"?`<button class="mchip" data-r="pick" data-w="acc">${a?badgeHTML(a):""}${a?esc(a.name):"Choose account"} <span class="muted" style="display:flex">${ic("chevron-right")}</span></button>`:""}<label class="mchip">${ic("calendar")} ${dateTxt}<input type="date" id="r-date" value="${R.date}"></label><button class="mchip ${R.noteOpen?"on":""}" data-r="note">${ic("pencil")} ${R.note?esc(R.note.slice(0,18)):"Note"}</button>${R.ex?`<button class="mchip" data-r="del" style="color:var(--out)">${ic("trash-2")} Delete</button>`:""}</div>
+  <div class="rec-meta">${R.type!=="transfer"?`<button class="mchip" data-r="pick" data-w="acc">${a?badgeHTML(a):""}${a?esc(a.name):"Choose account"} <span class="muted" style="display:flex">${ic("chevron-right")}</span></button>`:""}<label class="mchip">${ic("calendar")} ${dateTxt}<input type="date" id="r-date" value="${R.date}"></label><button class="mchip ${R.noteOpen?"on":""}" data-r="note">${ic("pencil")} ${R.note?esc(R.note.slice(0,18)):"Note"}</button>${R.ex?`<button class="mchip" data-r="del" aria-label="Delete" style="color:var(--out)">${ic("trash-2")}</button>`:""}</div>
   ${R.noteOpen?`<div class="rec-note"><input id="r-note" placeholder="What was it for? (optional)" value="${esc(R.note)}"></div>`:""}
   ${body}
   <div class="keys">${["1","2","3","⌫","4","5","6","C","7","8","9","SAVE",".","0","00"].map(k=>k==="SAVE"?`<button class="save" data-r="save" ${canSave?"":"disabled"}>${R.ex?"Update":"Save"}</button>`:`<button class="${k==="⌫"||k==="C"?"act":""}" data-r="key" data-k="${k}" aria-label="${k==="⌫"?"Delete digit":k==="C"?"Clear":k}">${k==="⌫"?ic("delete"):k}</button>`).join("")}</div>`;

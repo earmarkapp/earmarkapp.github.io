@@ -2,11 +2,9 @@
 
 Earmark is a phone-first budget app: record money in and out, set money aside for planned payments, budgets, savings goals ("tabung"), debts (cards, paylater, loans) and trip budgets. Live at https://earmarkapp.github.io (GitHub Pages, served from `main`).
 
-## Working with the owner
-- The owner is not a programmer. Explain things in plain, short English, without jargon. Tell her exactly what to click or type when she has to do something herself.
-- Plan first: for anything bigger than a small fix, write a short plan in plain words and get her OK before changing code.
-- She tests on her own iPhone (installed to the Home Screen) and reports what to change.
-- Keep the wording in the app plain and friendly, not "AI-sounding".
+## Style
+- Wording in the app is plain and friendly, not "AI-sounding".
+- Phone first: test on an iPhone-sized screen, as an app installed to the Home Screen.
 
 ## How it's built
 - No framework, no build step, no server. Everything is in `index.html` (HTML, CSS and JS), plus `sw.js` (offline cache), `manifest.json` and `icons/`.
@@ -24,9 +22,9 @@ Earmark is a phone-first budget app: record money in and out, set money aside fo
 - Commit author: `Earmark <noreply@earmarkapp.github.io>`.
 - For risky experiments, use a branch and merge only after she has tried it.
 
-## Privacy of the owner
-- The credit line in the app is `@nurulkhairida_` (Instagram). Do not add any other handle, account or project of hers to this repo or the app.
-- This repo is public. Don't put personal details, keys or passwords in it.
+## Public repo
+- This repo is public. No personal details, keys or passwords.
+- Keep the credit line as set in `CONFIG`. Don't add other handles, accounts or links to other projects.
 
 ## Security checklist (static site)
 - Anything the user types (names, notes, categories) must be escaped before it goes into the page (use the existing `esc()` helper). Never put user text straight into `innerHTML`.

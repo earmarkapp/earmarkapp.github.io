@@ -140,6 +140,7 @@ nav.tabs .plus svg{width:24px;height:24px;stroke-width:2.4}
 .field input:focus,.field select:focus{box-shadow:0 0 0 2px var(--ink)}
 .field .big{font-family:var(--num);font-size:28px;font-weight:700;text-align:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two>*{min-width:0}.two input{min-width:0}
 .toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--card);border-radius:10px;margin-bottom:14px;font-weight:500}
 .toggle small{display:block;font-weight:400;color:var(--muted);font-size:13px;margin-top:2px}
 .sw{width:51px;height:31px;border-radius:99px;background:var(--fill);position:relative;flex:none;transition:background .2s}
@@ -369,8 +370,12 @@ const H=()=>D&&S().hide;
 function prov(a){const p=ALLP.find(p=>p[0]===a.provider&&(providersFor(a.type,a.kind).some(x=>x[0]===a.provider)));return p||["other",a.name,"#6B7088",null]}
 function badgeHTML(a,lg){const p=prov(a);if(a.type==="cash")return icoHTML("banknote","#34C759",lg);const short=(p[0]==="other"||!p[3])?(a.name.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase()||"?"):p[3];const fg=lum(p[2])>.6?"#1C1C1E":"#fff";return `<span class="badge ${lg?"lg":""}" style="background:${p[2]};color:${fg}">${esc(short)}</span>`}
 const tripSpent=id=>r2(D.tx.filter(x=>x.type==="expense"&&x.trip===id).reduce((a,x)=>a+x.amount,0));
-function allTrips(){const out=[];for(const [m,d] of Object.entries(D.months||{}))for(const x of (d.extras||[]))if(x.trip)out.push({id:x.id,m,name:x.name,amount:x.amount,closed:!!x.paid});return out.sort((a,b)=>a.m<b.m?-1:1);}
-const activeTrips=()=>allTrips().filter(t=>!t.closed&&t.m>=addM(thisYM(),-1));
+function allTrips(){const out=[];for(const [m,d] of Object.entries(D.months||{}))for(const x of (d.extras||[]))if(x.trip)out.push({id:x.id,m,name:x.name,amount:x.amount,closed:!!x.paid,from:x.from||null,to:x.to||null,endM:tripEndM(x,m)});return out.sort((a,b)=>a.m<b.m?-1:1);}
+const tripEndM=(x,m)=>x.to&&ymOf(x.to)>m?ymOf(x.to):m;
+const tripDates=x=>x.from?(x.to&&x.to!==x.from?(ymOf(x.from)===ymOf(x.to)?(+x.from.slice(8))+" – "+dLabel(x.to):dLabel(x.from)+" – "+dLabel(x.to)):dLabel(x.from)):"";
+function readTripDates(sh,pre){let f=(sh.querySelector("#"+pre+"-from")||{}).value||"",t=(sh.querySelector("#"+pre+"-to")||{}).value||"";const ok=v=>/^\d{4}-\d{2}-\d{2}$/.test(v);f=ok(f)?f:"";t=ok(t)?t:"";if(f&&!t)t=f;if(t&&!f)f=t;if(f>t)[f,t]=[t,f];return {from:f||undefined,to:t||undefined};}
+const tripDateFields=(pre,x,show)=>`<div class="two" id="${pre}-dates" ${show?"":"hidden"}><div class="field"><label>Start date</label><input type="date" id="${pre}-from" value="${esc(x&&x.from||"")}"></div><div class="field"><label>End date</label><input type="date" id="${pre}-to" value="${esc(x&&x.to||"")}"></div></div>`;
+const activeTrips=()=>allTrips().filter(t=>!t.closed&&t.endM>=addM(thisYM(),-1));
 const tripName=id=>{const t=allTrips().find(t=>t.id===id);return t?t.name:null;};
 function spentOn(m,cat){const n=String(cat).toLowerCase();return r2(D.tx.filter(x=>x.type==="expense"&&ymOf(x.date)===m&&String(x.category||"").toLowerCase()===n&&!x.plan).reduce((a,x)=>a+x.amount,0))}
 
@@ -404,7 +409,8 @@ function planLines(m){
   {const c=CP(),ls=L["cp:save"]||{};
    if(c&&c.on&&c.fund&&m>=thisYM()&&!ls.skip){const r=ls.paid?null:cpRow(m);const amt=ls.paid?(ls.amount||0):(r?r.save:0);
      if(amt>0.005)out.push({key:"cp:save",id:"cp:save",name:"Save for BC settlement",group:"debt",kind:"fixed",amount:amt,auto:true,paid:!!ls.paid,paidOn:ls.paidOn||null,txId:ls.txId||null,dueDay:null,note:"",category:"Savings",payFrom:null,payTo:c.fund});}}
-  for(const x of (d.extras||[]))out.push({key:"x:"+x.id,id:x.id,name:x.name,group:x.group||"oneoff",kind:x.trip?"budget":"fixed",trip:!!x.trip,spent:x.trip?tripSpent(x.id):0,amount:x.amount,paid:!!x.paid,paidOn:x.paidOn||null,txId:x.txId||null,dueDay:x.dueDay||null,note:x.note||"",category:x.category||x.name,payFrom:null,payTo:null,extra:true});
+  for(const [hm,hd] of Object.entries(D.months||{}))if(hm<m)for(const x of (hd.extras||[]))if(x.trip&&tripEndM(x,hm)>=m)out.push({key:"x:"+x.id,id:x.id,name:x.name,group:x.group||"oneoff",kind:"budget",trip:true,spent:tripSpent(x.id),amount:x.amount,paid:!!x.paid,paidOn:null,txId:null,dueDay:null,note:"",category:x.name,payFrom:null,payTo:null,extra:true,carried:true,home:hm,from:x.from||null,to:x.to||null});
+  for(const x of (d.extras||[]))out.push({key:"x:"+x.id,from:x.from||null,to:x.to||null,id:x.id,name:x.name,group:x.group||"oneoff",kind:x.trip?"budget":"fixed",trip:!!x.trip,spent:x.trip?tripSpent(x.id):0,amount:x.amount,paid:!!x.paid,paidOn:x.paidOn||null,txId:x.txId||null,dueDay:x.dueDay||null,note:x.note||"",category:x.category||x.name,payFrom:null,payTo:null,extra:true});
   return out;
 }
 const fromCash=l=>!l.payFrom||isSpend(acc(l.payFrom));
@@ -558,7 +564,7 @@ function vRecords(){
 function lineHTML(l,m){
   const dt=dueText(l,m);
   if(l.kind==="budget"){const pct=l.amount>0?Math.min(100,l.spent/l.amount*100):0,over=l.spent>l.amount;
-    return rowH({tag:"div",cls:l.paid?"done":"",act:"line",data:`data-m="${m}" data-k="${esc(l.key)}" style="cursor:pointer"`,lead:icoHTML(l.trip?"plane":catIcon(l.category,"expense"),groupColor(l.group)),title:`${esc(l.name)} <span class="chip">${l.trip?"Trip":"Budget"}</span>`,sub:`<span class="bar ${over?"over":""}" style="display:block;margin:5px 0 4px"><i style="width:${pct}%"></i></span>${fmt(l.spent)} spent, ${over?`<span class="neg">${fmt(l.spent-l.amount)} over</span>`:`${fmt(l.amount-l.spent)} left`}`,right:`<span class="amt">${fmt(l.amount)}</span>`});}
+    return rowH({tag:"div",cls:l.paid?"done":"",act:"line",data:`data-m="${m}" data-k="${esc(l.key)}" style="cursor:pointer"`,lead:icoHTML(l.trip?"plane":catIcon(l.category,"expense"),groupColor(l.group)),title:`${esc(l.name)} <span class="chip">${l.trip?"Trip":"Budget"}</span>`,sub:`${l.trip&&l.from?`<span class="small muted" style="display:block">${esc(tripDates(l))}${l.carried?", from "+esc(mShort(l.home)):""}</span>`:""}<span class="bar ${over?"over":""}" style="display:block;margin:5px 0 4px"><i style="width:${pct}%"></i></span>${fmt(l.spent)} spent, ${over?`<span class="neg">${fmt(l.spent-l.amount)} over</span>`:`${fmt(l.amount-l.spent)} left`}`,right:`<span class="amt">${fmt(l.amount)}</span>`});}
   const via=l.payFrom&&!fromCash(l)?`, on ${acc(l.payFrom).name}`:"";
   const sub=l.paid?("Paid"+(l.paidOn?" "+dLabel(l.paidOn):"")):(l.amount===0?"Tap to set the amount":(dt?dt.txt:"Not paid yet")+via);
   return rowH({tag:"div",cls:l.paid?"done":"",act:"line",data:`data-m="${m}" data-k="${esc(l.key)}" style="cursor:pointer"`,lead:`<button class="tick ${l.paid?"on":""}" data-act="toggle" data-m="${m}" data-k="${esc(l.key)}" aria-label="${l.paid?"Paid":"Mark as paid"}">${ic("check")||"✓"}</button>`,title:esc(l.name)+(l.note?` <span class="chip">${esc(l.note)}</span>`:""),sub:esc(sub),subcls:!l.paid&&dt&&dt.late?"neg":"",right:`<span class="amt">${fmt(l.amount)}</span>`});
@@ -568,7 +574,7 @@ function vPlan(){
   let h=top("Plan");
   h+=`<div class="monthbar"><button data-act="pm" data-d="-1" aria-label="Previous month">${ic("chevron-left")}</button><div class="m">${mLabel(m)}</div><button data-act="pm" data-d="1" aria-label="Next month">${ic("chevron-right")}</button></div>`;
   if(!lines.length&&!incL.length)return h+`<div class="group"><div class="empty"><b>Plan your month</b>Add the bills you pay every month and the income you expect. ${esc(CONFIG.appName)} sets that money aside, so you can see what's left to spend.</div></div><div class="btns"><button class="btn" data-act="addplan" data-m="${m}">Add a monthly bill</button><button class="btn ghost" data-act="income" data-id="">Add expected income</button></div>`;
-  const total=r2(lines.reduce((s,l)=>s+l.amount,0));
+  const total=r2(lines.reduce((s,l)=>s+(l.carried?0:l.amount),0));
   const left=r2(lines.reduce((s,l)=>s+(l.kind==="budget"?(l.paid?0:Math.max(0,l.amount-l.spent)):(l.paid?0:l.amount)),0));
   const net=r2(inc-total);
   h+=`<div class="group"><div class="pair"><div><div class="l">Left to pay</div><div class="v">${fmt(left)}</div></div><div><div class="l">Left after bills</div><div class="v ${net<0?"neg":"pos"}">${net<0?"−":""}${fmt(Math.abs(net))}</div></div></div></div>`;
@@ -579,7 +585,7 @@ function vPlan(){
   const order=[...groups().map(g=>g.id),"oneoff","_goals"],seen=new Set();
   for(const gid of [...order,"_rest"]){
     const gl=gid==="_rest"?lines.filter(l=>!seen.has(l.key)):lines.filter(l=>l.group===gid);gl.forEach(l=>seen.add(l.key));if(!gl.length)continue;
-    h+=`<div class="ghead"><h2>${esc(gid==="_goals"?"Savings goals":gid==="_rest"?"Others":groupName(gid))}</h2><span class="num muted" style="font-weight:600">${fmt(gl.reduce((s,l)=>s+l.amount,0))}</span></div><div class="group">${gl.map(l=>lineHTML(l,m)).join("")}</div>`;
+    h+=`<div class="ghead"><h2>${esc(gid==="_goals"?"Savings goals":gid==="_rest"?"Others":groupName(gid))}</h2><span class="num muted" style="font-weight:600">${fmt(gl.reduce((s,l)=>s+(l.carried?0:l.amount),0))}</span></div><div class="group">${gl.map(l=>lineHTML(l,m)).join("")}</div>`;
   }
   h+=`<div class="group" style="margin-top:24px"><div class="kv"><span>Income</span><b>${fmt(inc)}</b></div><div class="kv"><span>Bills and payments</span><b>${fmt(total)}</b></div><div class="kv total"><span>Left after bills</span><b class="${net<0?"neg":"pos"}">${RM(net)}</b></div></div>`;
   h+=`<div class="btns"><button class="btn" data-act="addplan" data-m="${m}">Add a bill</button><button class="btn ghost" data-act="items">Edit monthly bills</button></div>`;
@@ -962,7 +968,7 @@ $("#rec").addEventListener("click",e=>{
   else if(r==="pick"){R.picking=b.dataset.w==="to"?"to":"acc";drawRec();}
   else if(r==="setacc"){if(R.picking==="to"){R.to=b.dataset.id;if(!R.cat||catOf(R.cat,"transfer")){const pp=trfPurpose({toAccount:R.to});if(pp&&pp.name)R.cat=pp.name;}}else R.acc=b.dataset.id;R.picking=null;drawRec();}
   else if(r==="trip"){const ts=activeTrips();if(R.trip&&!ts.some(t=>t.id===R.trip)){const o=allTrips().find(t=>t.id===R.trip);if(o)ts.unshift(o);}
-    openSheet(`<h2>Which trip?</h2><div class="group">${ts.map(t=>rowH({data:`data-t="${esc(t.id)}"`,lead:icoHTML("plane","#AF52DE"),title:esc(t.name),sub:`${mLabel(t.m)}, ${fmt(tripSpent(t.id))} used of ${fmt(t.amount)}`,right:R.trip===t.id?ic("check"):""})).join("")}${rowH({data:'data-t=""',lead:icoHTML("x","#8E8E93"),title:"Not for a trip"})}</div>`,sh=>sh.querySelectorAll("[data-t]").forEach(x=>x.onclick=()=>{R.trip=x.dataset.t||null;closeSheet();drawRec();}));}
+    openSheet(`<h2>Which trip?</h2><div class="group">${ts.map(t=>rowH({data:`data-t="${esc(t.id)}"`,lead:icoHTML("plane","#AF52DE"),title:esc(t.name),sub:`${t.from?tripDates(t):mLabel(t.m)}, ${fmt(tripSpent(t.id))} used of ${fmt(t.amount)}`,right:R.trip===t.id?ic("check"):""})).join("")}${rowH({data:'data-t=""',lead:icoHTML("x","#8E8E93"),title:"Not for a trip"})}</div>`,sh=>sh.querySelectorAll("[data-t]").forEach(x=>x.onclick=()=>{R.trip=x.dataset.t||null;closeSheet();drawRec();}));}
   else if(r==="note"){R.noteOpen=!R.noteOpen;R.focusNote=R.noteOpen;drawRec();}
   else if(r==="save")recSave();
   else if(r==="newcat")sheetCat(null,R.type,true,b.dataset.g);
@@ -1163,19 +1169,22 @@ function tripDetailHTML(l){const tx=D.tx.filter(x=>x.type==="expense"&&x.trip===
   return `<div class="group"><div class="kv"><span>Used</span><b>${fmt(l.spent)}</b></div><div class="kv"><span>${left<0?"Over budget":"Left to use"}</span><b class="${left<0?"neg":"pos"}">${fmt(Math.abs(left))}</b></div><div class="kv" style="display:block"><span class="bar ${left<0?"over":""}" style="display:block"><i style="width:${pc}%"></i></span></div></div>
   <div class="ghead" style="margin-top:16px"><h2 style="font-size:17px">Spending on this trip</h2></div><div class="group">${tx.length?tx.map(txRow).join(""):`<div class="empty">Nothing yet. When you record spending, tap the Trip button and pick ${esc(l.name)}.</div>`}</div><div style="height:14px"></div>`;}
 function sheetLine(m,key){
-  const l=findLine(m,key);if(!l)return;const isBud=l.kind==="budget";
-  openSheet(`<h2>${esc(l.name)}</h2><p class="muted small" style="margin-top:-10px">${mLabel(m)}</p>
+  const l=findLine(m,key);if(!l)return;const isBud=l.kind==="budget",hm=l.home||m;
+  openSheet(`<h2>${esc(l.name)}</h2><p class="muted small" style="margin-top:-10px">${l.trip&&l.from?esc(tripDates(l)):mLabel(hm)}</p>
   <div class="field"><label>${l.trip?"Trip budget":"Amount this month"}</label><input class="big num" id="l-amt" inputmode="decimal" value="${l.amount}"></div>
-  ${l.extra?`<div class="field"><label>Name</label><input id="l-name" value="${esc(l.name)}"></div><div class="field"><label>Group</label><select id="l-grp">${groupOptions(l.group,true)}</select></div><div class="toggle"><span>Trip or event budget<small>Tag spending to it when you record, from any category</small></span><span class="sw ${l.trip?"on":""}" id="l-trip"></span></div>`:l.goal?"":`<div class="toggle"><span>Use this amount from now on</span><span class="sw" id="l-fut"></span></div>`}
+  ${l.extra?`<div class="field"><label>Name</label><input id="l-name" value="${esc(l.name)}"></div><div class="field"><label>Group</label><select id="l-grp">${groupOptions(l.group,true)}</select></div><div class="toggle"><span>Trip or event budget<small>Tag spending to it when you record, from any category</small></span><span class="sw ${l.trip?"on":""}" id="l-trip"></span></div>${tripDateFields("l",l,l.trip)}`:l.goal?"":`<div class="toggle"><span>Use this amount from now on</span><span class="sw" id="l-fut"></span></div>`}
   ${!isBud?`<div class="field"><label>Due day</label><input id="l-due" inputmode="numeric" value="${l.dueDay||""}" placeholder="e.g. 26"></div>`:`${l.trip?tripDetailHTML(l):`<p class="hint">Spending recorded as ${esc(l.category)} counts against this budget. Spent so far: ${RM(l.spent)}.</p>`}<div class="toggle"><span>${l.trip?"The trip is over, close this budget":"Close this budget for the month"}</span><span class="sw ${l.paid?"on":""}" id="l-close"></span></div>`}
   <button class="btn" id="l-ok">Save</button>
   <div class="btns">${!isBud?(l.paid?`<button class="btn ghost" id="l-unpay">Mark as not paid</button>`:`<button class="btn ghost" id="l-pay">${l.goal?"Save now":"Pay now"}</button>`):""}
   ${!l.extra&&!l.goal?`<button class="btn ghost" data-act="item" data-id="${esc(l.id)}">Edit monthly payment</button>`:""}${l.goal?`<button class="btn ghost" data-act="goal" data-id="${esc(l.id)}">Open goal</button>`:""}
   <button class="btn danger" id="l-skip">${l.extra?"Delete":"Skip this month"}</button></div>`,sh=>{
-    bindSw(sh);
+    bindSw(sh);{const tw=sh.querySelector("#l-trip");if(tw)tw.addEventListener("click",()=>{sh.querySelector("#l-dates").hidden=!tw.classList.contains("on");});}
     sh.querySelector("#l-ok").onclick=()=>{
       const amt=num(sh.querySelector("#l-amt").value),dueEl=sh.querySelector("#l-due"),due=dueEl?(parseInt(dueEl.value)||null):undefined;
-      if(l.extra){const nm=(sh.querySelector("#l-name").value||"").trim()||l.name;mutMonth(m,d=>{d.extras=(d.extras||[]).map(x=>x.id===l.id?Object.assign(x,{amount:amt,name:nm,dueDay:due,group:sh.querySelector("#l-grp").value,trip:sh.querySelector("#l-trip").classList.contains("on")||undefined},sh.querySelector("#l-close")?{paid:sh.querySelector("#l-close").classList.contains("on")}:{}):x)});}
+      if(l.extra){const nm=(sh.querySelector("#l-name").value||"").trim()||l.name,isTrip=sh.querySelector("#l-trip").classList.contains("on"),dt=isTrip?readTripDates(sh,"l"):{from:undefined,to:undefined};let moved=null;
+        mutMonth(hm,d=>{d.extras=(d.extras||[]).map(x=>{if(x.id!==l.id)return x;Object.assign(x,{amount:amt,name:nm,dueDay:due,group:sh.querySelector("#l-grp").value,trip:isTrip||undefined,from:dt.from,to:dt.to},sh.querySelector("#l-close")?{paid:sh.querySelector("#l-close").classList.contains("on")}:{});if(x.from===undefined)delete x.from;if(x.to===undefined)delete x.to;return x;});
+          const sm=dt.from&&ymOf(dt.from);if(sm&&sm!==hm){const x=d.extras.find(x=>x.id===l.id);d.extras=d.extras.filter(y=>y!==x);moved={x,sm};}});
+        if(moved){mutMonth(moved.sm,d=>{d.extras=d.extras||[];d.extras.push(moved.x);});commit();closeSheet();toast("Saved. It now starts in "+mLabel(moved.sm));return;}}
       else{const patch={};const fut=sh.querySelector("#l-fut");
         if(fut&&fut.classList.contains("on")){const it=items().find(i=>i.id===l.id);it.amounts=(it.amounts||[]).filter(e=>e.from<m);it.amounts.push({from:m,amount:amt});patch.amount=null;for(const k of Object.keys(D.months))if(k>m&&D.months[k].lines&&D.months[k].lines[l.key]&&!D.months[k].lines[l.key].paid)delete D.months[k].lines[l.key].amount;}
         else patch.amount=amt;
@@ -1186,7 +1195,7 @@ function sheetLine(m,key){
     };
     const p=sh.querySelector("#l-pay");if(p)p.onclick=()=>sheetPay(m,key);
     const u=sh.querySelector("#l-unpay");if(u)u.onclick=()=>sheetUnpay(m,key);
-    sh.querySelector("#l-skip").onclick=()=>{if(l.txId)delTx(l.txId);if(l.extra)mutMonth(m,d=>{d.extras=(d.extras||[]).filter(x=>x.id!==l.id)});else setLine(m,l,{skip:true,paid:false,txId:null});commit();closeSheet();toast(l.extra?"Deleted":"Skipped this month");};
+    sh.querySelector("#l-skip").onclick=()=>{if(l.txId)delTx(l.txId);if(l.extra)mutMonth(hm,d=>{d.extras=(d.extras||[]).filter(x=>x.id!==l.id)});else setLine(m,l,{skip:true,paid:false,txId:null});commit();closeSheet();toast(l.extra?"Deleted":"Skipped this month");};
   });
 }
 function itemForm(i,m,st){
@@ -1210,12 +1219,12 @@ function sheetAddPlan(m,keep,st){
   <div id="ap-once" ${st.mode==="once"?"":"hidden"}><div class="field"><label>What is it?</label><input id="ao-name" placeholder="e.g. Holiday, Road tax, Wedding gift"></div>
   <div class="two"><div class="field"><label>Amount</label><input id="ao-amt" class="num" inputmode="decimal" placeholder="0.00"></div><div class="field"><label>Due day</label><input id="ao-due" inputmode="numeric" placeholder="e.g. 30"></div></div>
   <div class="field"><label>Group</label><select id="ao-grp">${groupOptions("fun",true)}</select></div>
-  <div class="toggle"><span>Trip or event budget<small>Like a budget for a trip or outing. Tag spending to it when you record, from any category</small></span><span class="sw" id="ao-trip"></span></div></div>
+  <div class="toggle"><span>Trip or event budget<small>Like a budget for a trip or outing. Tag spending to it when you record, from any category</small></span><span class="sw" id="ao-trip"></span></div>${tripDateFields("ao",null,false)}</div>
   <button class="btn" id="ap-ok">Add</button>`,sh=>{
-    bindSw(sh);restore(sh,keep);bindItemForm(sh,st,k=>sheetAddPlan(m,k,st));
+    bindSw(sh);restore(sh,keep);bindItemForm(sh,st,k=>sheetAddPlan(m,k,st));{const tw=sh.querySelector("#ao-trip"),sync=()=>{sh.querySelector("#ao-dates").hidden=!tw.classList.contains("on");};tw.addEventListener("click",sync);sync();}
     sh.querySelectorAll("#ap-seg button").forEach(b=>b.onclick=()=>{st.mode=b.dataset.v;sh.querySelectorAll("#ap-seg button").forEach(x=>x.classList.toggle("on",x===b));sh.querySelector("#ap-month").hidden=st.mode!=="monthly";sh.querySelector("#ap-once").hidden=st.mode==="monthly";});
     sh.querySelector("#ap-ok").onclick=()=>{
-      if(st.mode==="once"){const name=sh.querySelector("#ao-name").value.trim();if(!name){toast("Give it a name");return}mutMonth(m,d=>{d.extras=d.extras||[];d.extras.push({id:rid(),name,amount:num(sh.querySelector("#ao-amt").value),dueDay:parseInt(sh.querySelector("#ao-due").value)||null,group:sh.querySelector("#ao-grp").value,trip:sh.querySelector("#ao-trip").classList.contains("on")||undefined})});}
+      if(st.mode==="once"){const name=sh.querySelector("#ao-name").value.trim();if(!name){toast("Give it a name");return}const isTrip=sh.querySelector("#ao-trip").classList.contains("on"),dt=isTrip?readTripDates(sh,"ao"):{},tm=dt.from?ymOf(dt.from):m;const x={id:rid(),name,amount:num(sh.querySelector("#ao-amt").value),dueDay:parseInt(sh.querySelector("#ao-due").value)||null,group:sh.querySelector("#ao-grp").value,trip:isTrip||undefined};if(dt.from){x.from=dt.from;x.to=dt.to;}mutMonth(tm,d=>{d.extras=d.extras||[];d.extras.push(x)});if(tm!==m){commit();closeSheet();toast("Added to "+mLabel(tm));return;}}
       else{const f=readItemForm(sh,st);if(!f.name){toast("Give it a name");return}if(f.payTo&&acc(f.payTo).type==="debt")f.group="debt";const {amount,...rest}=f;items().push(Object.assign({id:rid(),start:m,amounts:[{from:m,amount}],note:""},rest));}
       commit();closeSheet();toast("Added to your plan");
     };
@@ -1493,8 +1502,9 @@ document.addEventListener("touchend",e=>{const row=e.target.closest('#app .row[d
   if(row._dx<-130){const id=row.dataset.id;swClose();deleteTx(id);}else if(row._dx<-45){row.style.transform="translateX(-96px)";row._swJust=Date.now();}else swClose();});
 document.addEventListener("click",e=>{const row=e.target.closest('.row[data-act="edittx"]');if(row&&(row.classList.contains("swiping")||row._swJust&&Date.now()-row._swJust<400)){e.stopPropagation();e.preventDefault();swClose();}},true);
 /* ---------- version, what's new, tour ---------- */
-const APP_VERSION="1.7.0";
+const APP_VERSION="1.8.0";
 const CHANGELOG=[
+ {v:"1.8.0",date:"2026-11-12",items:["Trips can have a start and end date. A trip that runs into the next month shows in both months, and its budget is only counted once.","Date boxes no longer spill off the edge on small screens."]},
  {v:"1.7.0",date:"2026-11-12",items:["A friendly reminder to save a backup file if you haven't in a month. Tap Not now to be asked again in a week."]},
  {v:"1.6.0",date:"2026-11-12",items:["Swipe a record to the left to delete it, with Undo if it was a mistake.","Deleting from the edit screen also has Undo.","Appearance: Light, Dark, or Match phone, in More.","The walkthrough now covers trip budgets, deleting records and appearance.","The app now checks for updates each time you open it."]},
  {v:"1.5.0",date:"2026-11-12",items:["Trip and event budgets: give a trip a total budget, tag spending to it when you record (bus, food, tickets), and see how much is used and left.","Turn an existing one-off plan into a trip budget from its details."]},
@@ -1523,7 +1533,7 @@ const GUIDE=[
  {go:()=>goTab("plan"),s:"#app .pair",up:".group",t:"Left to pay",p:"How much of this month's bills is left, and what's left of your income after bills."},
  {go:()=>goTab("plan"),s:"#app .empty",t:"Start your plan",p:"Your plan is empty for now. Add your income and monthly bills from More, under Set up your month. We'll show you where."},
  {go:()=>goTab("plan"),s:'#app .tick:not(.on)',up:".row",t:"Pay a bill",p:"Tap the circle when you pay a bill. It records the payment and ticks it off. Tap the bill itself to change its amount."},
- {go:()=>goTab("plan"),s:'#app .row[data-act="line"]',txt:"",find:l=>l.querySelector(".chip")&&/Trip/.test(l.querySelector(".chip").textContent),t:"Trip budget",p:"A budget for a trip or outing. Tag spending to it with the Trip button when you record, from any category. Tap it to see what's used and left."},
+ {go:()=>goTab("plan"),s:'#app .row[data-act="line"]',txt:"",find:l=>l.querySelector(".chip")&&/Trip/.test(l.querySelector(".chip").textContent),t:"Trip budget",p:"A budget for a trip or outing. Tag spending to it with the Trip button when you record, from any category. Add start and end dates, and a trip that runs into next month shows there too."},
  {go:()=>goTab("plan"),s:'#app [data-act="addplan"]',t:"Add to your plan",p:"Add a bill for every month, or one just for this month. Turn on Trip or event budget for trips like Penang or a hangout."},
  {go:()=>goTab("plan"),s:"#app .monthbar",t:"Other months",p:"Use the arrows to look at next month or past months."},
  {go:()=>goTab("records"),s:'nav [data-tab="records"]',t:"Records",p:"Everything you've recorded, month by month."},

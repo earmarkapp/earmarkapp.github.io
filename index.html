@@ -10,6 +10,7 @@
 <meta property="og:image" content="https://earmarkapp.github.io/icons/icon-512.png">
 <meta property="og:url" content="https://earmarkapp.github.io/">
 <meta name="twitter:card" content="summary">
+<script>try{var _th=localStorage.getItem("earmark:theme");if(_th==="light"||_th==="dark")document.documentElement.setAttribute("data-theme",_th);}catch(e){}</script>
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -28,7 +29,7 @@
   --num:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#000000;--card:#1C1C1E;--ink:#FFFFFF;--ink2:#D1D1D6;--muted:#98989F;--faint:#636366;--line:#38383A;--fill:#2C2C2E;--primary:#FFFFFF;--on-primary:#000000;--in:#30D158;--out:#FF453A;--warn:#FF9F0A;}
+  :root:not([data-theme=light]){--bg:#000000;--card:#1C1C1E;--ink:#FFFFFF;--ink2:#D1D1D6;--muted:#98989F;--faint:#636366;--line:#38383A;--fill:#2C2C2E;--primary:#FFFFFF;--on-primary:#000000;--in:#30D158;--out:#FF453A;--warn:#FF9F0A;color-scheme:dark}
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none !important}
@@ -82,7 +83,13 @@ svg.i{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:2;stroke-l
 .seg{display:flex;background:var(--fill);border-radius:9px;padding:2px}
 .seg button{flex:1;padding:7px 6px;border-radius:7px;font-weight:600;font-size:14px;color:var(--ink2)}
 .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04)}
-@media (prefers-color-scheme: dark){.seg button.on{background:#636366}}
+@media (prefers-color-scheme: dark){:root:not([data-theme=light]) .seg button.on{background:#636366}}
+:root[data-theme=dark]{--bg:#000000;--card:#1C1C1E;--ink:#FFFFFF;--ink2:#D1D1D6;--muted:#98989F;--faint:#636366;--line:#38383A;--fill:#2C2C2E;--primary:#FFFFFF;--on-primary:#000000;--in:#30D158;--out:#FF453A;--warn:#FF9F0A;color-scheme:dark}
+:root[data-theme=dark] .seg button.on{background:#636366}
+:root[data-theme=light]{color-scheme:light}
+.swdel{position:absolute;right:0;width:96px;background:#FF3B30;color:#fff;font-weight:600;font-size:16px;display:flex;align-items:center;justify-content:center;gap:6px;z-index:0}
+.row.swiping{position:relative;z-index:1;background:var(--card);transition:transform .2s}
+.group.swg{position:relative}
 .chip{display:inline-flex;align-items:center;gap:4px;background:var(--fill);color:var(--ink2);font-size:12px;font-weight:600;padding:2px 7px;border-radius:6px;vertical-align:1px}
 .chip.ok{color:var(--in)} .chip.bad{color:var(--out)} .chip.warn{color:var(--warn)}
 .tick{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--faint);display:grid;place-items:center;flex:none;color:transparent;font-size:14px}
@@ -259,7 +266,7 @@ ICONS["cloud"]="<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\" 
 ICONS.check="<path d=\"M20 6 9 17l-5-5\" />";
 (function(){
 "use strict";
-Object.assign(ICONS,{"star":"<path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\" />","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\" />","bot":"<path d=\"M12 8V4H8\" /> <rect width=\"16\" height=\"12\" x=\"4\" y=\"8\" rx=\"2\" /> <path d=\"M2 14h2\" /> <path d=\"M20 14h2\" /> <path d=\"M15 13v2\" /> <path d=\"M9 13v2\" />","repeat":"<path d=\"m17 2 4 4-4 4\" /> <path d=\"M3 11v-1a4 4 0 0 1 4-4h14\" /> <path d=\"m7 22-4-4 4-4\" /> <path d=\"M21 13v1a4 4 0 0 1-4 4H3\" />","image":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\" /> <circle cx=\"9\" cy=\"9\" r=\"2\" /> <path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\" />"});
+Object.assign(ICONS,{"moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\" />","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\" /><path d=\"M12 2v2\" /><path d=\"M12 20v2\" /><path d=\"m4.93 4.93 1.41 1.41\" /><path d=\"m17.66 17.66 1.41 1.41\" /><path d=\"M2 12h2\" /><path d=\"M20 12h2\" /><path d=\"m6.34 17.66-1.41 1.41\" /><path d=\"m19.07 4.93-1.41 1.41\" />","contrast":"<circle cx=\"12\" cy=\"12\" r=\"10\" /><path d=\"M12 18a6 6 0 0 0 0-12v12z\" />","star":"<path d=\"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z\" />","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\" />","bot":"<path d=\"M12 8V4H8\" /> <rect width=\"16\" height=\"12\" x=\"4\" y=\"8\" rx=\"2\" /> <path d=\"M2 14h2\" /> <path d=\"M20 14h2\" /> <path d=\"M15 13v2\" /> <path d=\"M9 13v2\" />","repeat":"<path d=\"m17 2 4 4-4 4\" /> <path d=\"M3 11v-1a4 4 0 0 1 4-4h14\" /> <path d=\"m7 22-4-4 4-4\" /> <path d=\"M21 13v1a4 4 0 0 1-4 4H3\" />","image":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\" /> <circle cx=\"9\" cy=\"9\" r=\"2\" /> <path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\" />"});
 const ic=(n,cls)=>`<svg class="i ${cls||""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]||ICONS.tag}</svg>`;
 const KEY="earmark:v1";
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -586,6 +593,7 @@ function vMore(){
   ${moreRow("credit-card","#FF3B30","Debts",totalDebt()>0?`${RM(totalDebt())} owed`:"Credit cards, PayLater, loans","page",'data-p="debts"')}
   ${moreRow("wallet","#007AFF","Accounts",`${accounts().length} account${accounts().length===1?"":"s"}`,"page",'data-p="accounts"')}</div>`;
   h+=`<div class="ghead"><h2>Setup</h2></div><div class="group">${moreRow("briefcase","#34C759","Expected income","Salary, bonus, money from family","incomes")}${moreRow("calendar-check","#5856D6","Monthly bills","Bills, loans, budgets","items")}${moreRow("tag","#FF9500","Categories","Icons and groups","cats")}${moreRow("zap","#FFCC00","Quick record",S().startOn==="spent"?"Opens straight to recording":"Record even faster","quick")}${moreRow("coins","#8E8E93","Currency",esc(CUR()),"currency")}</div>`;
+  h+=`<div class="group" style="margin-top:14px">${moreRow("contrast","#636366","Appearance",{auto:"Match phone",light:"Light",dark:"Dark"}[getTheme()],"theme")}</div>`;
   h+=`<div class="ghead"><h2>Help</h2></div><div class="group">${moreRow("sparkles","#1F9D55","App walkthrough","See how everything works","tour")}${moreRow("gift","#FF9500","What's new",`Version ${APP_VERSION}`,"whatsnew")}</div>`;
   h+=`<div class="ghead"><h2>Your data</h2></div><div class="group">${moreRow("save","#30B0C7","Save a backup file",S().lastBackup?"Last saved "+dLabel(dstr(new Date(S().lastBackup))):"Use it to move to a new phone","backup")}${moreRow("folder-open","#30B0C7","Restore from a backup","","import")}${moreRow("trash-2","#FF3B30","Delete everything on this phone","","wipe")}</div><p class="hint">Your records are stored only on this phone. Nothing is sent anywhere.</p>`;
   if(CONFIG.supportUrl)h+=`<div class="btns"><a class="btn ghost" href="${esc(CONFIG.supportUrl)}" target="_blank" rel="noopener">${ic("coffee")} ${esc(CONFIG.supportLabel)}</a></div>`;
@@ -908,7 +916,7 @@ function drawRec(){
   const canSave=num(R.amt)>0&&(R.type==="transfer"?(R.acc&&R.to&&R.acc!==R.to):(R.cat&&R.acc));
   el.innerHTML=`<div class="rec-top"><button class="round" data-r="close" aria-label="Close">${ic("x")}</button><div class="seg">${[["expense","Spent"],["income","Received"],["transfer","Transfer"]].map(([v,n])=>`<button data-r="type" data-v="${v}" class="${R.type===v?"on":""}">${n}</button>`).join("")}</div></div>
   <div class="rec-amt"><div class="v num"><small>${CUR()}</small>${esc(amtTxt)}</div></div>
-  <div class="rec-meta">${R.type!=="transfer"?`<button class="mchip" data-r="pick" data-w="acc">${a?badgeHTML(a):""}${a?esc(a.name):"Choose account"} <span class="muted" style="display:flex">${ic("chevron-right")}</span></button>`:""}${R.type==="expense"&&(activeTrips().length||R.trip)?`<button class="mchip ${R.trip?"on":""}" data-r="trip">${ic("plane")} ${R.trip?esc((tripName(R.trip)||"Trip").slice(0,16)):"Trip"}</button>`:""}<label class="mchip">${ic("calendar")} ${dateTxt}<input type="date" id="r-date" value="${R.date}"></label><button class="mchip ${R.noteOpen?"on":""}" data-r="note">${ic("pencil")} ${R.note?esc(R.note.slice(0,18)):"Note"}</button>${R.ex?`<button class="mchip" data-r="del" aria-label="Delete" style="color:var(--out)">${ic("trash-2")}</button>`:""}</div>
+  <div class="rec-meta">${R.type!=="transfer"?`<button class="mchip" data-r="pick" data-w="acc">${a?badgeHTML(a):""}${a?esc(a.name):"Choose account"} <span class="muted" style="display:flex">${ic("chevron-right")}</span></button>`:""}${R.type==="expense"&&(activeTrips().length||R.trip)?`<button class="mchip ${R.trip?"on":""}" data-r="trip">${ic("plane")} ${R.trip?esc((tripName(R.trip)||"Trip").slice(0,16)):"Trip"}</button>`:""}<label class="mchip">${ic("calendar")} ${dateTxt}<input type="date" id="r-date" value="${R.date}"></label><button class="mchip ${R.noteOpen?"on":""}" data-r="note">${ic("pencil")} ${R.note?esc(R.note.slice(0,18)):"Note"}</button>${R.ex?`<button class="mchip" data-r="del" aria-label="Delete this record" style="color:var(--out);background:color-mix(in srgb,var(--out) 12%,var(--card))">${ic("trash-2")}</button>`:""}</div>
   ${R.noteOpen?`<div class="rec-note"><input id="r-note" placeholder="What was it for? (optional)" value="${esc(R.note)}"></div>`:""}
   ${body}
   <div class="keys">${["1","2","3","⌫","4","5","6","C","7","8","9","SAVE",".","0","00"].map(k=>k==="SAVE"?`<button class="save" data-r="save" ${canSave?"":"disabled"}>${R.ex?"Update":"Save"}</button>`:`<button class="${k==="⌫"||k==="C"?"act":""}" data-r="key" data-k="${k}" aria-label="${k==="⌫"?"Delete digit":k==="C"?"Clear":k}">${k==="⌫"?ic("delete"):k}</button>`).join("")}</div>`;
@@ -959,7 +967,7 @@ $("#rec").addEventListener("click",e=>{
   else if(r==="save")recSave();
   else if(r==="newcat")sheetCat(null,R.type,true,b.dataset.g);
   else if(r==="newacc"){closeRec();sheetAddAccount();}
-  else if(r==="del"){const ex=R.ex;closeRec();ask("Delete this record?",`${RM(ex.amount)}, ${esc(ex.category||"Transfer")}, ${dLabel(ex.date)}.${ex.plan?" It will also be un-ticked in your plan.":""}`,"Delete",()=>{unlinkTx(ex);delTx(ex.id);commit();toast("Deleted");},true);}
+  else if(r==="del"){const ex=R.ex;closeRec();deleteTx(ex.id);}
 });
 
 /* ===== accounts ===== */
@@ -1427,6 +1435,7 @@ document.addEventListener("click",e=>{
     case "close":closeSheet();break;
     case "start":D=freshData();S().seenVersion=APP_VERSION;commit();openTour();break;
     case "tour":openTour();break;
+    case "theme":sheetTheme();break;
     case "whatsnew":sheetWhatsNew(true);break;
     case "rec":closeSheet();openRec(ds.t||"expense");break;
     case "edittx":{const x=D.tx.find(t=>t.id===ds.id);if(!x)break;if(x.type==="save"){const g=goals().find(y=>y.id===x.goalId);ask(esc((x.withdraw?"Taken from ":"Saved for ")+(g?g.name:"goal")),`${RM(x.amount)} on ${dLabel(x.date)}.`,"Delete",()=>{unlinkTx(x);delTx(x.id);commit();},true);}else openRec(null,ds.id);break;}
@@ -1466,9 +1475,33 @@ document.addEventListener("click",e=>{
 $("#filein").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(f)handleFile(f);});
 
 
+/* ---------- appearance ---------- */
+const getTheme=()=>{try{return localStorage.getItem("earmark:theme")||"auto"}catch(_){return "auto"}};
+function applyTheme(t){try{t==="auto"?localStorage.removeItem("earmark:theme"):localStorage.setItem("earmark:theme",t)}catch(_){}
+  const r=document.documentElement;if(t==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",t);
+  const dark=t==="dark"||(t==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{if(t==="auto")m.setAttribute("content",m.media.includes("dark")?"#000000":"#F2F2F7");else m.setAttribute("content",dark?"#000000":"#F2F2F7");});}
+function sheetTheme(){const cur=getTheme();
+  openSheet(`<h2>Appearance</h2><div class="group">${[["auto","Match phone","Light or dark, the same as your phone","contrast"],["light","Light","","sun"],["dark","Dark","","moon"]].map(([v,t,sub,i])=>rowH({data:`data-th="${v}"`,lead:icoHTML(ICONS[i]?i:"settings",v==="dark"?"#1C1C1E":v==="light"?"#FF9500":"#8E8E93"),title:t,sub,right:cur===v?`<span style="color:#007AFF;display:flex">${ic("check")}</span>`:""})).join("")}</div>`,sh=>sh.querySelectorAll("[data-th]").forEach(b=>b.onclick=()=>{applyTheme(b.dataset.th);sheetTheme();render();}));}
+applyTheme(getTheme());
+/* ---------- delete records ---------- */
+function deleteTx(id){const x=D.tx.find(t=>t.id===id);if(!x)return;const snap=JSON.stringify(D);unlinkTx(x);delTx(id);commit();
+  toast(`Deleted ${x.type==="transfer"?"transfer":esc(x.category||"record")}, ${CUR()} ${fmt(x.amount)}`,"Undo",()=>{D=JSON.parse(snap);commit();toast("Record is back");});}
+let _sw=null;
+function swClose(){if(!_sw)return;const {row,btn}=_sw;row.style.transform="";setTimeout(()=>{btn.remove();row.classList.remove("swiping");},200);_sw=null;}
+document.addEventListener("touchstart",e=>{const row=e.target.closest('#app .row[data-act="edittx"],#sheet .row[data-act="edittx"]');if(_sw&&(!row||row!==_sw.row)&&!e.target.closest(".swdel"))swClose();if(!row||e.target.closest(".swdel"))return;
+  const t=e.touches[0];row._sx=t.clientX;row._sy=t.clientY;row._dx=0;row._lock=null;row._open=_sw&&_sw.row===row;},{passive:true});
+document.addEventListener("touchmove",e=>{const row=e.target.closest('#app .row[data-act="edittx"],#sheet .row[data-act="edittx"]');if(!row||row._sx==null)return;const t=e.touches[0],dx=t.clientX-row._sx,dy=t.clientY-row._sy;
+  if(row._lock==null&&(Math.abs(dx)>8||Math.abs(dy)>8))row._lock=Math.abs(dx)>Math.abs(dy)?"x":"y";if(row._lock!=="x")return;
+  if(!row.classList.contains("swiping")){const g=row.parentElement;g.classList.add("swg");const b=document.createElement("button");b.className="swdel";b.innerHTML=ic("trash-2")+"Delete";b.style.top=row.offsetTop+"px";b.style.height=row.offsetHeight+"px";b.onclick=ev=>{ev.stopPropagation();const id=row.dataset.id;_sw=null;b.remove();row.classList.remove("swiping");row.style.transform="";deleteTx(id);};g.appendChild(b);row.classList.add("swiping");_sw={row,btn:b};}
+  const base=row._open?-96:0;row._dx=Math.max(-140,Math.min(0,base+dx));row.style.transition="none";row.style.transform=`translateX(${row._dx}px)`;},{passive:true});
+document.addEventListener("touchend",e=>{const row=e.target.closest('#app .row[data-act="edittx"],#sheet .row[data-act="edittx"]');if(!row||row._sx==null)return;row._sx=null;if(row._lock!=="x")return;row.style.transition="";
+  if(row._dx<-130){const id=row.dataset.id;swClose();deleteTx(id);}else if(row._dx<-45){row.style.transform="translateX(-96px)";row._swJust=Date.now();}else swClose();});
+document.addEventListener("click",e=>{const row=e.target.closest('.row[data-act="edittx"]');if(row&&(row.classList.contains("swiping")||row._swJust&&Date.now()-row._swJust<400)){e.stopPropagation();e.preventDefault();swClose();}},true);
 /* ---------- version, what's new, tour ---------- */
-const APP_VERSION="1.5.0";
+const APP_VERSION="1.6.0";
 const CHANGELOG=[
+ {v:"1.6.0",date:"2026-11-12",items:["Swipe a record to the left to delete it, with Undo if it was a mistake.","Deleting from the edit screen also has Undo.","Appearance: Light, Dark, or Match phone, in More.","The walkthrough now covers trip budgets, deleting records and appearance.","The app now checks for updates each time you open it."]},
  {v:"1.5.0",date:"2026-11-12",items:["Trip and event budgets: give a trip a total budget, tag spending to it when you record (bus, food, tickets), and see how much is used and left.","Turn an existing one-off plan into a trip budget from its details."]},
  {v:"1.4.1",date:"2026-11-12",items:["The walkthrough now takes you to each screen and highlights the actual buttons, step by step."]},
  {v:"1.4.0",date:"2026-11-12",items:["App walkthrough that takes you through each screen and shows you how it works. Watch it again any time from More.","This What's new message after each update, with past versions."]},
@@ -1479,7 +1512,7 @@ const CHANGELOG=[
 ];
 const goTab=t=>{closeRec();closeSheet();UI.tab=t;UI.page=null;render();window.scrollTo(0,0);};
 const goPage=pg=>{closeRec();closeSheet();UI.tab="more";UI.page=pg;render();window.scrollTo(0,0);};
-const findEl=(sel,txt)=>[...document.querySelectorAll(sel)].find(e=>e.offsetParent!==null&&(!txt||e.textContent.includes(txt)))||null;
+const findEl=(sel,txt,fn)=>[...document.querySelectorAll(sel)].find(e=>e.offsetParent!==null&&(!txt||e.textContent.includes(txt))&&(!fn||fn(e)))||null;
 const GUIDE=[
  {go:()=>goTab("home"),t:"Welcome to Earmark",p:"Let's take a quick walk through the app. Tap Next to go to each part, or Skip any time. You can watch this again from More."},
  {go:()=>goTab("home"),s:".bal",t:"Total balance",p:"All the money in your bank, e-wallets, cash and savings. Tap a row below it to see each account."},
@@ -1495,8 +1528,11 @@ const GUIDE=[
  {go:()=>goTab("plan"),s:"#app .pair",up:".group",t:"Left to pay",p:"How much of this month's bills is left, and what's left of your income after bills."},
  {go:()=>goTab("plan"),s:"#app .empty",t:"Start your plan",p:"Your plan is empty for now. Add your income and monthly bills from More, under Set up your month. We'll show you where."},
  {go:()=>goTab("plan"),s:'#app .tick:not(.on)',up:".row",t:"Pay a bill",p:"Tap the circle when you pay a bill. It records the payment and ticks it off. Tap the bill itself to change its amount."},
+ {go:()=>goTab("plan"),s:'#app .row[data-act="line"]',txt:"",find:l=>l.querySelector(".chip")&&/Trip/.test(l.querySelector(".chip").textContent),t:"Trip budget",p:"A budget for a trip or outing. Tag spending to it with the Trip button when you record, from any category. Tap it to see what's used and left."},
+ {go:()=>goTab("plan"),s:'#app [data-act="addplan"]',t:"Add to your plan",p:"Add a bill for every month, or one just for this month. Turn on Trip or event budget for trips like Penang or a hangout."},
  {go:()=>goTab("plan"),s:"#app .monthbar",t:"Other months",p:"Use the arrows to look at next month or past months."},
  {go:()=>goTab("records"),s:'nav [data-tab="records"]',t:"Records",p:"Everything you've recorded, month by month."},
+ {go:()=>goTab("records"),s:'#app .row[data-act="edittx"]',t:"Fix a mistake",p:"Tap a record to change it. Swipe it to the left to delete it. After deleting, tap Undo if you didn't mean to."},
  {go:()=>goTab("records"),s:"#app .seg",t:"Where it went",p:"Switch to Where it went to see your spending by group and category."},
  {go:()=>goTab("more"),s:'[data-p="goals"]',t:"Savings goals",p:"Save for a trip, a new phone or an emergency fund. Goal money is set aside, so it's not counted in what you can spend."},
  {go:()=>goTab("more"),s:'[data-p="debts"]',t:"Debts",p:"Credit cards, PayLater and loans. Let's take a look."},
@@ -1505,6 +1541,7 @@ const GUIDE=[
  {go:()=>goPage("debts"),s:"#app .ghead",txt:"Card payoff plan",next:1,t:"Card payoff plan",p:"Set a monthly budget for your cards. Earmark pays each card's BC and minimum, clears the balance outside BC, then saves to settle BC early."},
  {go:()=>goTab("more"),s:'[data-p="accounts"]',t:"Accounts",p:"Your bank, e-wallets, cash and savings. Update their balances here."},
  {go:()=>goTab("more"),s:'[data-act="items"]',up:".group",t:"Set up your month",p:"Add your expected income, monthly bills and budgets, and edit your categories."},
+ {go:()=>goTab("more"),s:'[data-act="theme"]',t:"Appearance",p:"Choose Light, Dark, or Match phone."},
  {go:()=>goTab("more"),s:'[data-act="backup"]',t:"Keep a backup",p:"Your records live only on this phone. Save a backup file now and then, so you can move to a new phone."},
  {go:()=>goTab("more"),s:'[data-act="tour"]',t:"That's it",p:"Watch this walkthrough again here any time. What's new shows the latest updates."}
 ];
@@ -1512,7 +1549,7 @@ let _g=0,_gDir=1;
 async function drawGuide(){
   const el=$("#tour");let st=GUIDE[_g];if(!st){closeTour();return;}
   st.go();await new Promise(r=>setTimeout(r,360));
-  let t=null;if(st.s){t=findEl(st.s,st.txt);if(t&&st.up)t=t.closest(st.up)||t;}
+  let t=null;if(st.s){t=findEl(st.s,st.txt,st.find);if(t&&st.up)t=t.closest(st.up)||t;}
   if(st.s&&!t){_g+=_gDir;if(_g<0)_g=0;return drawGuide();}
   const t2=t&&st.next?t.nextElementSibling:null;
   if(t){(t2||t).scrollIntoView({block:"center",behavior:"instant"});if(t2&&t.getBoundingClientRect().top<8)t.scrollIntoView({block:"start",behavior:"instant"});await new Promise(r=>setTimeout(r,60));}

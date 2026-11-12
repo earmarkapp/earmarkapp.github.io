@@ -361,6 +361,10 @@ function icoHTML(icon,color,lg){return `<span class="sq ${lg?"lg":""}" style="ba
 const H=()=>D&&S().hide;
 function prov(a){const p=ALLP.find(p=>p[0]===a.provider&&(providersFor(a.type,a.kind).some(x=>x[0]===a.provider)));return p||["other",a.name,"#6B7088",null]}
 function badgeHTML(a,lg){const p=prov(a);if(a.type==="cash")return icoHTML("banknote","#34C759",lg);const short=(p[0]==="other"||!p[3])?(a.name.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase()||"?"):p[3];const fg=lum(p[2])>.6?"#1C1C1E":"#fff";return `<span class="badge ${lg?"lg":""}" style="background:${p[2]};color:${fg}">${esc(short)}</span>`}
+const tripSpent=id=>r2(D.tx.filter(x=>x.type==="expense"&&x.trip===id).reduce((a,x)=>a+x.amount,0));
+function allTrips(){const out=[];for(const [m,d] of Object.entries(D.months||{}))for(const x of (d.extras||[]))if(x.trip)out.push({id:x.id,m,name:x.name,amount:x.amount,closed:!!x.paid});return out.sort((a,b)=>a.m<b.m?-1:1);}
+const activeTrips=()=>allTrips().filter(t=>!t.closed&&t.m>=addM(thisYM(),-1));
+const tripName=id=>{const t=allTrips().find(t=>t.id===id);return t?t.name:null;};
 function spentOn(m,cat){const n=String(cat).toLowerCase();return r2(D.tx.filter(x=>x.type==="expense"&&ymOf(x.date)===m&&String(x.category||"").toLowerCase()===n&&!x.plan).reduce((a,x)=>a+x.amount,0))}
 
 const incomeActive=(s,m)=>itemActive(s,m)&&(s.freq!=="custom"||(s.months||[]).includes(+m.slice(5)));
@@ -393,7 +397,7 @@ function planLines(m){
   {const c=CP(),ls=L["cp:save"]||{};
    if(c&&c.on&&c.fund&&m>=thisYM()&&!ls.skip){const r=ls.paid?null:cpRow(m);const amt=ls.paid?(ls.amount||0):(r?r.save:0);
      if(amt>0.005)out.push({key:"cp:save",id:"cp:save",name:"Save for BC settlement",group:"debt",kind:"fixed",amount:amt,auto:true,paid:!!ls.paid,paidOn:ls.paidOn||null,txId:ls.txId||null,dueDay:null,note:"",category:"Savings",payFrom:null,payTo:c.fund});}}
-  for(const x of (d.extras||[]))out.push({key:"x:"+x.id,id:x.id,name:x.name,group:x.group||"oneoff",kind:"fixed",amount:x.amount,paid:!!x.paid,paidOn:x.paidOn||null,txId:x.txId||null,dueDay:x.dueDay||null,note:x.note||"",category:x.category||x.name,payFrom:null,payTo:null,extra:true});
+  for(const x of (d.extras||[]))out.push({key:"x:"+x.id,id:x.id,name:x.name,group:x.group||"oneoff",kind:x.trip?"budget":"fixed",trip:!!x.trip,spent:x.trip?tripSpent(x.id):0,amount:x.amount,paid:!!x.paid,paidOn:x.paidOn||null,txId:x.txId||null,dueDay:x.dueDay||null,note:x.note||"",category:x.category||x.name,payFrom:null,payTo:null,extra:true});
   return out;
 }
 const fromCash=l=>!l.payFrom||isSpend(acc(l.payFrom));
@@ -512,7 +516,7 @@ function txRow(x){
   const a=acc(x.account),to=acc(x.toAccount);let icon,color,title,sub,amt,cls="";
   if(x.type==="save"){icon="piggy-bank";color="#34C759";title=(x.withdraw?"Taken from ":"Saved for ")+(x.category||"goal");sub=a?a.name:"";amt=fmt(x.amount);}
   else if(x.type==="transfer"){const pp=trfPurpose(x);icon=pp.icon||"arrow-left-right";color=pp.color||"#8E8E93";title=x.category||pp.name||"Transfer";sub=(a?a.name:"?")+" to "+(to?to.name:"?");amt=fmt(x.amount);}
-  else{icon=catIcon(x.category,x.type);color=catColor(x.category,x.type);title=x.category||"Others";sub=[x.note,a?a.name:""].filter(Boolean).join(", ");amt=(x.type==="income"?"+":"−")+fmt(x.amount);cls=x.type==="income"?"in":"";}
+  else{icon=catIcon(x.category,x.type);color=catColor(x.category,x.type);title=x.category||"Others";sub=[x.trip&&tripName(x.trip),x.note,a?a.name:""].filter(Boolean).join(", ");amt=(x.type==="income"?"+":"−")+fmt(x.amount);cls=x.type==="income"?"in":"";}
   return rowH({act:"edittx",data:`data-id="${esc(x.id)}"`,lead:icoHTML(icon,color),title:esc(title),sub:esc(sub),right:`<span class="amt ${cls}">${H()?"••••":amt}</span>`});
 }
 function dayGroups(list){const days={};for(const x of list)(days[x.date]=days[x.date]||[]).push(x);return days}
@@ -547,7 +551,7 @@ function vRecords(){
 function lineHTML(l,m){
   const dt=dueText(l,m);
   if(l.kind==="budget"){const pct=l.amount>0?Math.min(100,l.spent/l.amount*100):0,over=l.spent>l.amount;
-    return rowH({tag:"div",cls:l.paid?"done":"",act:"line",data:`data-m="${m}" data-k="${esc(l.key)}" style="cursor:pointer"`,lead:icoHTML(catIcon(l.category,"expense"),groupColor(l.group)),title:`${esc(l.name)} <span class="chip">Budget</span>`,sub:`<span class="bar ${over?"over":""}" style="display:block;margin:5px 0 4px"><i style="width:${pct}%"></i></span>${fmt(l.spent)} spent, ${over?`<span class="neg">${fmt(l.spent-l.amount)} over</span>`:`${fmt(l.amount-l.spent)} left`}`,right:`<span class="amt">${fmt(l.amount)}</span>`});}
+    return rowH({tag:"div",cls:l.paid?"done":"",act:"line",data:`data-m="${m}" data-k="${esc(l.key)}" style="cursor:pointer"`,lead:icoHTML(l.trip?"plane":catIcon(l.category,"expense"),groupColor(l.group)),title:`${esc(l.name)} <span class="chip">${l.trip?"Trip":"Budget"}</span>`,sub:`<span class="bar ${over?"over":""}" style="display:block;margin:5px 0 4px"><i style="width:${pct}%"></i></span>${fmt(l.spent)} spent, ${over?`<span class="neg">${fmt(l.spent-l.amount)} over</span>`:`${fmt(l.amount-l.spent)} left`}`,right:`<span class="amt">${fmt(l.amount)}</span>`});}
   const via=l.payFrom&&!fromCash(l)?`, on ${acc(l.payFrom).name}`:"";
   const sub=l.paid?("Paid"+(l.paidOn?" "+dLabel(l.paidOn):"")):(l.amount===0?"Tap to set the amount":(dt?dt.txt:"Not paid yet")+via);
   return rowH({tag:"div",cls:l.paid?"done":"",act:"line",data:`data-m="${m}" data-k="${esc(l.key)}" style="cursor:pointer"`,lead:`<button class="tick ${l.paid?"on":""}" data-act="toggle" data-m="${m}" data-k="${esc(l.key)}" aria-label="${l.paid?"Paid":"Mark as paid"}">${ic("check")||"✓"}</button>`,title:esc(l.name)+(l.note?` <span class="chip">${esc(l.note)}</span>`:""),sub:esc(sub),subcls:!l.paid&&dt&&dt.late?"neg":"",right:`<span class="amt">${fmt(l.amount)}</span>`});
@@ -864,7 +868,7 @@ function usage(type){const f={};for(const x of D.tx)if(x.type===type&&x.category
 function openRec(type,id){
   if(!D){D=freshData();save();}
   const ex=id?D.tx.find(x=>x.id===id):null;
-  Object.assign(R,{folder:null,ex,type:ex?ex.type:(type||"expense"),amt:ex?String(r2(ex.amount)):"",cat:ex?ex.category||"":"",acc:ex?ex.account:defAcc(),to:ex?ex.toAccount||"":"",date:ex?ex.date:todayStr(),note:ex?ex.note||"":"",picking:null});
+  Object.assign(R,{folder:null,ex,type:ex?ex.type:(type||"expense"),amt:ex?String(r2(ex.amount)):"",cat:ex?ex.category||"":"",acc:ex?ex.account:defAcc(),to:ex?ex.toAccount||"":"",date:ex?ex.date:todayStr(),note:ex?ex.note||"":"",trip:ex?ex.trip||null:null,picking:null});
   if(R.type==="transfer"&&!R.to)R.to=(accounts().find(a=>a.id!==R.acc)||{}).id||"";
   drawRec();$("#rec").classList.add("on");
 }
@@ -904,7 +908,7 @@ function drawRec(){
   const canSave=num(R.amt)>0&&(R.type==="transfer"?(R.acc&&R.to&&R.acc!==R.to):(R.cat&&R.acc));
   el.innerHTML=`<div class="rec-top"><button class="round" data-r="close" aria-label="Close">${ic("x")}</button><div class="seg">${[["expense","Spent"],["income","Received"],["transfer","Transfer"]].map(([v,n])=>`<button data-r="type" data-v="${v}" class="${R.type===v?"on":""}">${n}</button>`).join("")}</div></div>
   <div class="rec-amt"><div class="v num"><small>${CUR()}</small>${esc(amtTxt)}</div></div>
-  <div class="rec-meta">${R.type!=="transfer"?`<button class="mchip" data-r="pick" data-w="acc">${a?badgeHTML(a):""}${a?esc(a.name):"Choose account"} <span class="muted" style="display:flex">${ic("chevron-right")}</span></button>`:""}<label class="mchip">${ic("calendar")} ${dateTxt}<input type="date" id="r-date" value="${R.date}"></label><button class="mchip ${R.noteOpen?"on":""}" data-r="note">${ic("pencil")} ${R.note?esc(R.note.slice(0,18)):"Note"}</button>${R.ex?`<button class="mchip" data-r="del" aria-label="Delete" style="color:var(--out)">${ic("trash-2")}</button>`:""}</div>
+  <div class="rec-meta">${R.type!=="transfer"?`<button class="mchip" data-r="pick" data-w="acc">${a?badgeHTML(a):""}${a?esc(a.name):"Choose account"} <span class="muted" style="display:flex">${ic("chevron-right")}</span></button>`:""}${R.type==="expense"&&(activeTrips().length||R.trip)?`<button class="mchip ${R.trip?"on":""}" data-r="trip">${ic("plane")} ${R.trip?esc((tripName(R.trip)||"Trip").slice(0,16)):"Trip"}</button>`:""}<label class="mchip">${ic("calendar")} ${dateTxt}<input type="date" id="r-date" value="${R.date}"></label><button class="mchip ${R.noteOpen?"on":""}" data-r="note">${ic("pencil")} ${R.note?esc(R.note.slice(0,18)):"Note"}</button>${R.ex?`<button class="mchip" data-r="del" aria-label="Delete" style="color:var(--out)">${ic("trash-2")}</button>`:""}</div>
   ${R.noteOpen?`<div class="rec-note"><input id="r-note" placeholder="What was it for? (optional)" value="${esc(R.note)}"></div>`:""}
   ${body}
   <div class="keys">${["1","2","3","⌫","4","5","6","C","7","8","9","SAVE",".","0","00"].map(k=>k==="SAVE"?`<button class="save" data-r="save" ${canSave?"":"disabled"}>${R.ex?"Update":"Save"}</button>`:`<button class="${k==="⌫"||k==="C"?"act":""}" data-r="key" data-k="${k}" aria-label="${k==="⌫"?"Delete digit":k==="C"?"Clear":k}">${k==="⌫"?ic("delete"):k}</button>`).join("")}</div>`;
@@ -923,6 +927,7 @@ function recSave(){
   const amt=num(R.amt);if(amt<=0)return;
   const ex=R.ex;
   const t={id:ex?ex.id:rid(),type:R.type,amount:amt,account:R.acc,date:R.date,note:(R.note||"").trim(),created:ex?ex.created||Date.now():Date.now()};
+  if(R.type==="expense"&&R.trip)t.trip=R.trip;
   if(R.type==="transfer"){t.toAccount=R.to;t.category=R.cat||(ex&&ex.category)||(trfPurpose(t).name)||"";}else t.category=R.cat;
   for(const k of ["plan","src","goalId","withdraw"])if(ex&&ex[k]!=null&&ex.type===R.type)t[k]=ex[k];
   if(ex&&ex.type!==R.type)unlinkTx(ex);
@@ -948,6 +953,8 @@ $("#rec").addEventListener("click",e=>{
   else if(r==="fold"){R.folder=b.dataset.g||null;drawRec();}
   else if(r==="pick"){R.picking=b.dataset.w==="to"?"to":"acc";drawRec();}
   else if(r==="setacc"){if(R.picking==="to"){R.to=b.dataset.id;if(!R.cat||catOf(R.cat,"transfer")){const pp=trfPurpose({toAccount:R.to});if(pp&&pp.name)R.cat=pp.name;}}else R.acc=b.dataset.id;R.picking=null;drawRec();}
+  else if(r==="trip"){const ts=activeTrips();if(R.trip&&!ts.some(t=>t.id===R.trip)){const o=allTrips().find(t=>t.id===R.trip);if(o)ts.unshift(o);}
+    openSheet(`<h2>Which trip?</h2><div class="group">${ts.map(t=>rowH({data:`data-t="${esc(t.id)}"`,lead:icoHTML("plane","#AF52DE"),title:esc(t.name),sub:`${mLabel(t.m)}, ${fmt(tripSpent(t.id))} used of ${fmt(t.amount)}`,right:R.trip===t.id?ic("check"):""})).join("")}${rowH({data:'data-t=""',lead:icoHTML("x","#8E8E93"),title:"Not for a trip"})}</div>`,sh=>sh.querySelectorAll("[data-t]").forEach(x=>x.onclick=()=>{R.trip=x.dataset.t||null;closeSheet();drawRec();}));}
   else if(r==="note"){R.noteOpen=!R.noteOpen;R.focusNote=R.noteOpen;drawRec();}
   else if(r==="save")recSave();
   else if(r==="newcat")sheetCat(null,R.type,true,b.dataset.g);
@@ -1144,12 +1151,15 @@ function sheetPay(m,key){
   });
 }
 function sheetUnpay(m,key){const l=findLine(m,key);if(!l)return;ask(esc(l.name),`Paid ${l.paidOn?dLabel(l.paidOn):""}, ${RM(l.amount)}. Marking it unpaid also deletes the record it made.`,"Mark as not paid",()=>{if(l.txId)delTx(l.txId);setLine(m,l,{paid:false,paidOn:null,txId:null});commit();},true);}
+function tripDetailHTML(l){const tx=D.tx.filter(x=>x.type==="expense"&&x.trip===l.id).sort((a,b)=>a.date<b.date?1:-1),left=r2(l.amount-l.spent),pc=l.amount>0?Math.min(100,l.spent/l.amount*100):0;
+  return `<div class="group"><div class="kv"><span>Used</span><b>${fmt(l.spent)}</b></div><div class="kv"><span>${left<0?"Over budget":"Left to use"}</span><b class="${left<0?"neg":"pos"}">${fmt(Math.abs(left))}</b></div><div class="kv" style="display:block"><span class="bar ${left<0?"over":""}" style="display:block"><i style="width:${pc}%"></i></span></div></div>
+  <div class="ghead" style="margin-top:16px"><h2 style="font-size:17px">Spending on this trip</h2></div><div class="group">${tx.length?tx.map(txRow).join(""):`<div class="empty">Nothing yet. When you record spending, tap the Trip button and pick ${esc(l.name)}.</div>`}</div><div style="height:14px"></div>`;}
 function sheetLine(m,key){
   const l=findLine(m,key);if(!l)return;const isBud=l.kind==="budget";
   openSheet(`<h2>${esc(l.name)}</h2><p class="muted small" style="margin-top:-10px">${mLabel(m)}</p>
-  <div class="field"><label>Amount this month</label><input class="big num" id="l-amt" inputmode="decimal" value="${l.amount}"></div>
-  ${l.extra?`<div class="field"><label>Name</label><input id="l-name" value="${esc(l.name)}"></div><div class="field"><label>Group</label><select id="l-grp">${groupOptions(l.group,true)}</select></div>`:l.goal?"":`<div class="toggle"><span>Use this amount from now on</span><span class="sw" id="l-fut"></span></div>`}
-  ${!isBud?`<div class="field"><label>Due day</label><input id="l-due" inputmode="numeric" value="${l.dueDay||""}" placeholder="e.g. 26"></div>`:`<p class="hint">Spending recorded as ${esc(l.category)} counts against this budget. Spent so far: ${RM(l.spent)}.</p><div class="toggle"><span>Close this budget for the month</span><span class="sw ${l.paid?"on":""}" id="l-close"></span></div>`}
+  <div class="field"><label>${l.trip?"Trip budget":"Amount this month"}</label><input class="big num" id="l-amt" inputmode="decimal" value="${l.amount}"></div>
+  ${l.extra?`<div class="field"><label>Name</label><input id="l-name" value="${esc(l.name)}"></div><div class="field"><label>Group</label><select id="l-grp">${groupOptions(l.group,true)}</select></div><div class="toggle"><span>Trip or event budget<small>Tag spending to it when you record, from any category</small></span><span class="sw ${l.trip?"on":""}" id="l-trip"></span></div>`:l.goal?"":`<div class="toggle"><span>Use this amount from now on</span><span class="sw" id="l-fut"></span></div>`}
+  ${!isBud?`<div class="field"><label>Due day</label><input id="l-due" inputmode="numeric" value="${l.dueDay||""}" placeholder="e.g. 26"></div>`:`${l.trip?tripDetailHTML(l):`<p class="hint">Spending recorded as ${esc(l.category)} counts against this budget. Spent so far: ${RM(l.spent)}.</p>`}<div class="toggle"><span>${l.trip?"The trip is over, close this budget":"Close this budget for the month"}</span><span class="sw ${l.paid?"on":""}" id="l-close"></span></div>`}
   <button class="btn" id="l-ok">Save</button>
   <div class="btns">${!isBud?(l.paid?`<button class="btn ghost" id="l-unpay">Mark as not paid</button>`:`<button class="btn ghost" id="l-pay">${l.goal?"Save now":"Pay now"}</button>`):""}
   ${!l.extra&&!l.goal?`<button class="btn ghost" data-act="item" data-id="${esc(l.id)}">Edit monthly payment</button>`:""}${l.goal?`<button class="btn ghost" data-act="goal" data-id="${esc(l.id)}">Open goal</button>`:""}
@@ -1157,7 +1167,7 @@ function sheetLine(m,key){
     bindSw(sh);
     sh.querySelector("#l-ok").onclick=()=>{
       const amt=num(sh.querySelector("#l-amt").value),dueEl=sh.querySelector("#l-due"),due=dueEl?(parseInt(dueEl.value)||null):undefined;
-      if(l.extra){const nm=(sh.querySelector("#l-name").value||"").trim()||l.name;mutMonth(m,d=>{d.extras=(d.extras||[]).map(x=>x.id===l.id?Object.assign(x,{amount:amt,name:nm,dueDay:due,group:sh.querySelector("#l-grp").value}):x)});}
+      if(l.extra){const nm=(sh.querySelector("#l-name").value||"").trim()||l.name;mutMonth(m,d=>{d.extras=(d.extras||[]).map(x=>x.id===l.id?Object.assign(x,{amount:amt,name:nm,dueDay:due,group:sh.querySelector("#l-grp").value,trip:sh.querySelector("#l-trip").classList.contains("on")||undefined},sh.querySelector("#l-close")?{paid:sh.querySelector("#l-close").classList.contains("on")}:{}):x)});}
       else{const patch={};const fut=sh.querySelector("#l-fut");
         if(fut&&fut.classList.contains("on")){const it=items().find(i=>i.id===l.id);it.amounts=(it.amounts||[]).filter(e=>e.from<m);it.amounts.push({from:m,amount:amt});patch.amount=null;for(const k of Object.keys(D.months))if(k>m&&D.months[k].lines&&D.months[k].lines[l.key]&&!D.months[k].lines[l.key].paid)delete D.months[k].lines[l.key].amount;}
         else patch.amount=amt;
@@ -1191,12 +1201,13 @@ function sheetAddPlan(m,keep,st){
   <div id="ap-month" ${st.mode==="monthly"?"":"hidden"}>${itemForm(null,m,st)}</div>
   <div id="ap-once" ${st.mode==="once"?"":"hidden"}><div class="field"><label>What is it?</label><input id="ao-name" placeholder="e.g. Holiday, Road tax, Wedding gift"></div>
   <div class="two"><div class="field"><label>Amount</label><input id="ao-amt" class="num" inputmode="decimal" placeholder="0.00"></div><div class="field"><label>Due day</label><input id="ao-due" inputmode="numeric" placeholder="e.g. 30"></div></div>
-  <div class="field"><label>Group</label><select id="ao-grp">${groupOptions("fun",true)}</select></div></div>
+  <div class="field"><label>Group</label><select id="ao-grp">${groupOptions("fun",true)}</select></div>
+  <div class="toggle"><span>Trip or event budget<small>Like a budget for a trip or outing. Tag spending to it when you record, from any category</small></span><span class="sw" id="ao-trip"></span></div></div>
   <button class="btn" id="ap-ok">Add</button>`,sh=>{
     bindSw(sh);restore(sh,keep);bindItemForm(sh,st,k=>sheetAddPlan(m,k,st));
     sh.querySelectorAll("#ap-seg button").forEach(b=>b.onclick=()=>{st.mode=b.dataset.v;sh.querySelectorAll("#ap-seg button").forEach(x=>x.classList.toggle("on",x===b));sh.querySelector("#ap-month").hidden=st.mode!=="monthly";sh.querySelector("#ap-once").hidden=st.mode==="monthly";});
     sh.querySelector("#ap-ok").onclick=()=>{
-      if(st.mode==="once"){const name=sh.querySelector("#ao-name").value.trim();if(!name){toast("Give it a name");return}mutMonth(m,d=>{d.extras=d.extras||[];d.extras.push({id:rid(),name,amount:num(sh.querySelector("#ao-amt").value),dueDay:parseInt(sh.querySelector("#ao-due").value)||null,group:sh.querySelector("#ao-grp").value})});}
+      if(st.mode==="once"){const name=sh.querySelector("#ao-name").value.trim();if(!name){toast("Give it a name");return}mutMonth(m,d=>{d.extras=d.extras||[];d.extras.push({id:rid(),name,amount:num(sh.querySelector("#ao-amt").value),dueDay:parseInt(sh.querySelector("#ao-due").value)||null,group:sh.querySelector("#ao-grp").value,trip:sh.querySelector("#ao-trip").classList.contains("on")||undefined})});}
       else{const f=readItemForm(sh,st);if(!f.name){toast("Give it a name");return}if(f.payTo&&acc(f.payTo).type==="debt")f.group="debt";const {amount,...rest}=f;items().push(Object.assign({id:rid(),start:m,amounts:[{from:m,amount}],note:""},rest));}
       commit();closeSheet();toast("Added to your plan");
     };
@@ -1456,8 +1467,9 @@ $("#filein").addEventListener("change",e=>{const f=e.target.files&&e.target.file
 
 
 /* ---------- version, what's new, tour ---------- */
-const APP_VERSION="1.4.1";
+const APP_VERSION="1.5.0";
 const CHANGELOG=[
+ {v:"1.5.0",date:"2026-11-12",items:["Trip and event budgets: give a trip a total budget, tag spending to it when you record (bus, food, tickets), and see how much is used and left.","Turn an existing one-off plan into a trip budget from its details."]},
  {v:"1.4.1",date:"2026-11-12",items:["The walkthrough now takes you to each screen and highlights the actual buttons, step by step."]},
  {v:"1.4.0",date:"2026-11-12",items:["App walkthrough that takes you through each screen and shows you how it works. Watch it again any time from More.","This What's new message after each update, with past versions."]},
  {v:"1.3.0",date:"2026-11-12",items:["Minimum payment for each card. The payoff plan always pays at least the minimum.","When paying a card, pick the payoff plan amount or the minimum.","Tap a debt to see how Total owed adds up: outside BC, this month's BC, and BC for later months.","Fixes: buttons on the edit screen no longer cut off on small phones."]},
@@ -1478,7 +1490,7 @@ const GUIDE=[
  {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .seg",t:"Spent, Received or Transfer",p:"Pick what you're recording. Use Transfer to move money between your accounts or to pay a card."},
  {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .keys",t:"Type the amount",p:"Type the amount, then tap Save. That's it."},
  {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .rec-cats",t:"Pick a category",p:"Favourites or most used are at the top. The rest are in folders by group. Press and hold a category to add it to Favourites."},
- {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .rec-meta",t:"Account, date and note",p:"Tap these to change which account paid, the date, or to add a note."},
+ {go:()=>{if(!$("#rec").classList.contains("on"))openRec("expense");},s:"#rec .rec-meta",t:"Account, date and note",p:"Tap these to change which account paid, the date, or to add a note. If you have a trip budget, a Trip button shows here too."},
  {go:()=>goTab("plan"),s:'nav [data-tab="plan"]',t:"Plan",p:"Your monthly bills, budgets and expected income live here."},
  {go:()=>goTab("plan"),s:"#app .pair",up:".group",t:"Left to pay",p:"How much of this month's bills is left, and what's left of your income after bills."},
  {go:()=>goTab("plan"),s:"#app .empty",t:"Start your plan",p:"Your plan is empty for now. Add your income and monthly bills from More, under Set up your month. We'll show you where."},

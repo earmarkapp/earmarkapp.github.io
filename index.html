@@ -363,8 +363,10 @@ function planLines(m){
   for(const t of items()){
     if(!itemActive(t,m))continue;const l=L[t.id]||{};if(l.skip)continue;
     let amt=l.amount!=null?l.amount:amountFor(t,m),auto=false;
-    if(t.payTo&&m>=thisYM()&&!l.paid){const c=CP();if(c&&c.on&&(c.cards||[]).includes(t.payTo)&&cpSim()){const r=cpRow(m);const first=items().find(i=>i.payTo===t.payTo&&itemActive(i,m));amt=r&&first&&first.id===t.id?r.pay[t.payTo]||0:0;auto=true;if(amt<=0.005)continue;}}
-    const o={key:t.id,id:t.id,name:t.name,group:t.group,kind:t.kind||"fixed",amount:amt,auto,paid:!!l.paid,paidOn:l.paidOn||null,txId:l.txId||null,dueDay:l.dueDay||t.dueDay||null,note:t.note||"",category:t.category||t.name,payFrom:t.payFrom||null,payTo:t.payTo||null};
+    if(t.payTo&&m>=thisYM()&&!l.paid){const c=CP();if(c&&c.on&&(c.cards||[]).includes(t.payTo)&&cpSim()){const r=cpRow(m);const first=items().find(i=>i.payTo===t.payTo&&itemActive(i,m));amt=r&&first&&first.id===t.id?r.pay[t.payTo]||0:0;auto=true;if(amt<=0.005)continue;if(r){l._min=r.mins[t.payTo];l._minEst=r.minEst[t.payTo];}}}
+    else if(t.payTo&&!l.paid){const pa=acc(t.payTo),sm=pa&&stmtMin(pa,m);if(sm!=null){l._min=sm;l._minEst=false;}}
+    const pa2=t.payTo&&acc(t.payTo),sDue=pa2&&pa2.stmt&&pa2.stmt.ym===m&&pa2.stmt.due?+pa2.stmt.due.slice(8):null;
+    const o={key:t.id,id:t.id,name:t.name,group:t.group,kind:t.kind||"fixed",amount:amt,auto,paid:!!l.paid,paidOn:l.paidOn||null,txId:l.txId||null,dueDay:sDue||l.dueDay||t.dueDay||null,note:t.note||"",category:t.category||t.name,payFrom:t.payFrom||null,payTo:t.payTo||null,min:l._min!=null?l._min:null,minEst:!!l._minEst};delete l._min;delete l._minEst;
     if(o.kind==="budget")o.spent=spentOn(m,o.category);out.push(o);
   }
   for(const g of goals()){
@@ -400,6 +402,8 @@ const stmtOwed=a=>r2(Math.max(0,-accBalance(a)));
 function unbilled(a){const m=thisYM();return r2((a.plans||[]).reduce((s,p)=>s+(p.settledAt&&p.settledAt<=m?0:p.monthly*Math.max(0,p.end?mDiff(m,p.end):0)),0))}
 const owed=a=>r2(stmtOwed(a)+unbilled(a));
 const bcLeft=a=>r2(bcDue(a)+unbilled(a));
+const stmtMin=(a,m)=>a.stmt&&a.stmt.ym===m&&a.stmt.min>0?a.stmt.min:null;
+const estMin=(n,bc)=>r2(bc+Math.min(Math.max(0,n),Math.ceil(Math.max(0,n)*5)/100));
 function bcMonthly(a,m){m=m||thisYM();return r2((a.plans||[]).filter(p=>p.end&&p.end>=m&&(!p.from||p.from<=m)&&!(p.settledAt&&p.settledAt<m)).reduce((s,p)=>s+p.monthly,0))}
 function paidIn(a,m){return r2(D.tx.filter(x=>x.type==="transfer"&&x.toAccount===a.id&&!x.bcSettle&&!x.bcPay&&ymOf(x.date)===m).reduce((s,x)=>s+x.amount,0))}
 const bcDue=a=>r2(Math.max(0,bcMonthly(a)-paidIn(a,thisYM())));
@@ -627,7 +631,7 @@ function vHome(){
   if(D.tx.length>10&&(!s.lastBackup||(Date.now()-s.lastBackup)>30*864e5))setup.push(["Back up your records","backup","save","#FF9500"]);
   if(setup.length)h+=`<div class="group" style="margin-top:12px">${setup.map(([t,a,i,c])=>rowH({act:a,lead:icoHTML(i,c),title:t,chev:true})).join("")}</div>`;
   const bills=lines.filter(l=>l.kind!=="budget"&&!l.paid).sort((a,b)=>(a.dueDay||99)-(b.dueDay||99));
-  if(bills.length)h+=`<div class="ghead"><h2>Bills this month</h2><button data-act="tab" data-tab="plan">Plan</button></div><div class="group">${bills.map(l=>{const dt=dueText(l,m),via=l.payFrom&&!fromCash(l)?`On ${acc(l.payFrom).name}`:"";return rowH({tag:"div",title:esc(l.name),sub:[dt?dt.txt:"",via].filter(Boolean).join(", ")||"This month",subcls:dt&&dt.late?"neg":"",right:`<span class="amt">${money(l.amount)}</span>${l.amount>0?`<button class="paybtn" data-act="pay" data-m="${m}" data-k="${esc(l.key)}">${l.goal||l.key==="cp:save"?"Save":"Pay"}</button>`:`<button class="paybtn" data-act="line" data-m="${m}" data-k="${esc(l.key)}">Set</button>`}`})}).join("")}</div>`;
+  if(bills.length)h+=`<div class="ghead"><h2>Bills this month</h2><button data-act="tab" data-tab="plan">Plan</button></div><div class="group">${bills.map(l=>{const dt=dueText(l,m),via=l.payFrom&&!fromCash(l)?`On ${acc(l.payFrom).name}`:"";return rowH({tag:"div",title:esc(l.name),sub:[dt?dt.txt:"",l.min!=null&&Math.abs(l.min-l.amount)>0.005?`Minimum ${l.minEst?"about ":""}${money(l.min)}`:"",via].filter(Boolean).join(", ")||"This month",subcls:dt&&dt.late?"neg":"",right:`<span class="amt">${money(l.amount)}</span>${l.amount>0?`<button class="paybtn" data-act="pay" data-m="${m}" data-k="${esc(l.key)}">${l.goal||l.key==="cp:save"?"Save":"Pay"}</button>`:`<button class="paybtn" data-act="line" data-m="${m}" data-k="${esc(l.key)}">Set</button>`}`})}).join("")}</div>`;
   const monthTx=D.tx.filter(x=>ymOf(x.date)===m);
   const inn=r2(monthTx.filter(x=>x.type==="income").reduce((t,x)=>t+x.amount,0)),out=r2(monthTx.filter(x=>x.type==="expense").reduce((t,x)=>t+x.amount,0));
   h+=`<div class="ghead"><h2>${MONTHS[+m.slice(5)-1]}</h2><button data-act="tab" data-tab="records">Records</button></div><div class="group"><div class="pair"><div><div class="l">Money in</div><div class="v pos">${money(inn)}</div></div><div><div class="l">Spent</div><div class="v">${money(out)}</div></div></div></div>`;
@@ -672,6 +676,7 @@ function sheetDebtView(id){
     const n=nonBC(a);
     h+=`<div class="kv"><span>${k==="card"?"Outside BC":"Owed outside instalments"}</span><b class="${n>0&&a.rate?"neg":""}">${fmt(n)}</b></div>`;
     if(bcLeft(a)>0){const w=k==="card"?"BC":"Instalments";h+=`<div class="kv"><span>${w} this month, not paid yet</span><b>${fmt(bcDue(a))}</b></div><div class="kv"><span>${w} for later months</span><b>${fmt(unbilled(a))}</b></div><div class="kv"><span class="small muted">These add up to Total owed. The ${w==="BC"?"BC":"instalments"} for later months aren't billed yet, but you still owe them.</span></div>`;}
+    if(k==="card"){const sm=stmtMin(a,m);h+=`<div class="kv"><span>Minimum payment${sm!=null&&a.stmt.due?`, pay by ${dLabel(a.stmt.due)}`:""}</span><b>${sm!=null?fmt(sm):`about ${fmt(estMin(n,bcMonthly(a,m)))}`}</b></div>`;if(sm==null)h+=`<div class="kv"><span class="small muted">Estimate. Add the real minimum from your statement in Edit details.</span></div>`;}
     if(n>0&&a.rate)h+=`<div class="kv"><span class="muted">Interest if not cleared</span><b>about ${fmt(n*a.rate/1200)}/month</b></div>`;
   }
   h+=`</div>`;
@@ -709,7 +714,7 @@ const fundAcc=a=>{const c=CP();return !!(c&&c.on&&c.fund===a.id);};
 let _cpC=null;
 function cpSim(){
   const c=CP(),cards=cpCards();if(!c||!cards.length||!(c.budget>0))return null;
-  const m0=thisYM(),key=JSON.stringify([m0,c,D.tx.length,D.tx.length?D.tx[D.tx.length-1].id:0,cards.map(a=>[a.opening,a.plans,a.rate])]);
+  const m0=thisYM(),key=JSON.stringify([m0,c,D.tx.length,D.tx.length?D.tx[D.tx.length-1].id:0,cards.map(a=>[a.opening,a.plans,a.rate,a.stmt])]);
   if(_cpC&&_cpC.key===key)return _cpC.v;
   const fundName=(acc(c.fund)||{name:"savings"}).name;
   const st=cards.map(a=>({a,n:nonBC(a),r:(a.rate||0)/1200,plans:(a.plans||[]).filter(p=>p.end&&p.end>=m0&&!p.settled).map(p=>Object.assign({},p)),settled:false,clearedAt:nonBC(a)<=0.005?"before":null,settleAt:null,settleAmt:0}));
@@ -723,14 +728,20 @@ function cpSim(){
     let interest=0;
     if(k>0)st.forEach(s=>{if(s.n>0.005){const i=r2(s.n*s.r);s.n=r2(s.n+i);interest+=i;}});
     let avail=k===0?Math.max(0,r2(c.budget-usedNow)):c.budget;const pay={};st.forEach(s=>pay[s.a.id]=0);
-    for(const s of st){const d0=due(s,m,k),d=Math.min(avail,d0);pay[s.a.id]=r2(pay[s.a.id]+d);avail=r2(avail-d);if(d0-d>0.005)s.n=r2(s.n+d0-d);}
+    const mins={},minEst={};
+    for(const s of st){const d0=due(s,m,k),d=Math.min(avail,d0);pay[s.a.id]=r2(pay[s.a.id]+d);avail=r2(avail-d);if(d0-d>0.005)s.n=r2(s.n+d0-d);
+      const sm=stmtMin(s.a,m),bcThis=k===0?bcMonthly(s.a,m0):d0;let mn,extra;
+      if(sm!=null){mn=sm;extra=Math.max(0,r2(sm-(k===0?paidIn(s.a,m0):0)-d0));}else{mn=estMin(s.n,bcThis);extra=Math.max(0,r2(mn-bcThis));}
+      extra=Math.min(extra,Math.max(0,s.n));mins[s.a.id]=r2(mn);minEst[s.a.id]=sm==null;
+      if(extra>0.005){s.n=r2(s.n-extra);pay[s.a.id]=r2(pay[s.a.id]+extra);avail=r2(avail-extra);}}
+    if(avail<0)avail=0;
     for(const s of st.slice().sort((x,y)=>(y.r-x.r)||(x.n-y.n))){if(s.n<=0.005||avail<=0)continue;const d=Math.min(avail,s.n);s.n=r2(s.n-d);pay[s.a.id]=r2(pay[s.a.id]+d);avail=r2(avail-d);}
     const events=[];
     for(const s of st)if(!s.clearedAt&&s.n<=0.005){s.clearedAt=m;events.push({t:`${s.a.name}: balance outside BC cleared`});}
     const allClear=st.every(s=>s.n<=0.005);
     let save=0;if(allClear&&avail>0.005){save=r2(avail);fund=r2(fund+save);avail=0;}
     for(const s of st.filter(s=>!s.settled&&remBC(s,m)>0).sort((x,y)=>remBC(x,m)-remBC(y,m))){const R=remBC(s,m);if(allClear&&fund>=R-0.005){fund=r2(fund-R);s.settled=true;s.settleAt=m;s.settleAmt=R;events.push({t:`Settle ${s.a.name} BC early, about ${RM(R)} from ${fundName}`,settle:true});}}
-    rows.push({m,pay,save,interest:r2(interest),nb:Object.fromEntries(st.map(s=>[s.a.id,r2(Math.max(0,s.n))])),fund,events});
+    rows.push({m,pay,mins,minEst,save,interest:r2(interest),nb:Object.fromEntries(st.map(s=>[s.a.id,r2(Math.max(0,s.n))])),fund,events});
     if(st.every(s=>s.n<=0.005&&(s.settled||remBC(s,m)<=0.005))){rows[rows.length-1].events.push({t:"All card debt paid off",done:true});break;}
     m=addM(m,1);
   }
@@ -761,11 +772,12 @@ function cpSummaryHTML(){
 function sheetCPMonths(){
   const v=cpSim();if(!v)return;
   const nm=a=>esc(a.name.replace(/ credit card$/i,""));
-  let h=`<h2>Month by month</h2><p class="hint" style="margin:-8px 4px 14px">Based on a budget of ${RM(v.c.budget)} a month and no new spending on these cards.</p><div class="group">`;
+  let h=`<h2>Month by month</h2><p class="hint" style="margin:-8px 4px 14px">Based on a budget of ${RM(v.c.budget)} a month and no new spending on these cards. Each card always gets at least its minimum payment.</p><div class="group">`;
   for(const r of v.rows){
     const pays=v.st.filter(s=>r.pay[s.a.id]>0).map(s=>`${nm(s.a)} ${fmt(r.pay[s.a.id])}`).join(", ");
     const left=v.st.filter(s=>r.nb[s.a.id]>0.005).map(s=>`${nm(s.a)} ${fmt(r.nb[s.a.id])}`).join(", ");
-    let sub=`<div>Pay ${pays||"nothing"}</div>`;
+    const mins=v.st.filter(s=>r.mins&&r.mins[s.a.id]>0.005).map(s=>`${nm(s.a)} ${r.minEst[s.a.id]?"about ":""}${fmt(r.mins[s.a.id])}`).join(", ");
+    let sub=`<div>Pay ${pays||"nothing"}</div>`;if(mins)sub+=`<div class="muted">Minimum: ${mins}</div>`;
     if(r.save>0)sub+=`<div>Save ${fmt(r.save)} to ${esc(v.fundName)}${r.fund>0?`, total saved ${fmt(r.fund)}`:""}</div>`;
     if(left)sub+=`<div>Left outside BC: <span class="neg">${left}</span></div>`;
     if(r.interest>0)sub+=`<div>Interest about ${fmt(r.interest)}</div>`;
@@ -990,6 +1002,7 @@ function sheetDebtForm(a,preset){
   <p class="hint" style="margin:-6px 4px 14px">${kind==="card"?"This is the part that charges interest if you don't clear it. Don't include your BC balance.":"What you owe outside any instalment plans."}</p>
   <div class="field"><label>${kind==="card"?"Balance conversions (BC) and EPP":"Instalments"}</label><div id="cp"></div><button class="linkbtn" id="cp-add" style="margin-top:4px">${ic("plus")} Add a BC or instalment</button></div>
   <div class="two"><div class="field"><label>Interest % a year</label><input id="d-r" class="num" inputmode="decimal" value="${a?a.rate:(kind==="card"?18:0)}"></div><div class="field"><label>Due day</label><input id="d-due" inputmode="numeric" value="${linked&&linked.dueDay||""}" placeholder="e.g. 24"></div></div>
+  ${kind==="card"?`<div class="two"><div class="field"><label>Minimum payment, latest statement</label><input id="d-min" class="num" inputmode="decimal" value="${a&&a.stmt&&a.stmt.ym>=thisYM()?a.stmt.min:""}" placeholder="0.00"></div><div class="field"><label>Pay by</label><input type="date" id="d-mdue" value="${a&&a.stmt&&a.stmt.ym>=thisYM()&&a.stmt.due||""}"></div></div><p class="hint" style="margin:-6px 4px 14px">Update this each time a new statement comes out. Until then, Earmark estimates it as BC plus 5% of the balance outside BC.</p>`:""}
   <div class="field"><label>I usually pay each month</label><input id="d-pay" class="num" inputmode="decimal" value="${linked?amountFor(linked,m):""}" placeholder="optional"></div>`}
   <div class="toggle"><span>Put the monthly payment in my plan<small>So the money is set aside each month</small></span><span class="sw ${!a||linked?"on":""}" id="d-plan"></span></div>
   <button class="btn" id="d-ok">${a?"Save":"Add debt"}</button>
@@ -1001,6 +1014,7 @@ function sheetDebtForm(a,preset){
       const name=sh.querySelector("#d-n").value.trim()||prov(base)[1];
       const o=a||{id:rid(),type:"debt",kind,provider:base.provider,opening:0,plans:[]};
       o.name=name;o.rate=num(sh.querySelector("#d-r").value);
+      if(kind==="card"){const mn=num(sh.querySelector("#d-min").value),md=sh.querySelector("#d-mdue").value;o.stmt=mn>0?{min:mn,due:md||null,ym:md?md.slice(0,7):thisYM()}:null;}
       const due=parseInt(sh.querySelector("#d-due").value)||null;
       let pay=0;
       if(loan){
@@ -1093,12 +1107,15 @@ function sheetPay(m,key){
   const def=m===thisYM()?todayStr():(m<thisYM()?m+"-28":todayStr());
   const to=l.payTo?acc(l.payTo):null;
   openSheet(`<h2>${l.goal?"Save for "+esc(l.goal.name):"Pay "+esc(l.name)}</h2>
+  ${l.min!=null&&Math.abs(l.min-l.amount)>0.005?`<div class="field"><label>How much to pay</label><div class="seg" id="p-ch" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${[[l.amount,l.auto?"Payoff plan":"Planned"],[l.min,l.minEst?"Minimum (estimate)":"Minimum"]].map(([v,t],i)=>`<button class="pchoice ${i===0?"on":""}" data-v="${v}" style="padding:10px;border-radius:10px;background:var(--card);text-align:left;box-shadow:${i===0?"0 0 0 2px var(--ink)":"none"}"><div class="small muted">${t}</div><div style="font-weight:700;font-size:17px;font-family:var(--num)">${fmt(v)}</div></button>`).join("")}</div></div>`:""}
   <div class="field"><label>Amount</label><input class="big num" id="p-amt" inputmode="decimal" value="${l.amount}"></div>
+  ${l.minEst&&l.min!=null?`<p class="hint" style="margin-top:-6px">The minimum is an estimate (BC plus 5% of the rest). Check your statement, and add the real minimum in the card's Edit details.</p>`:""}
   <div class="two"><div class="field"><label>From</label><select id="p-acc">${accOptions(l.payFrom||defAcc(),a=>a.id!==l.payTo&&a.type!=="debt"||a.id===l.payFrom)}</select></div><div class="field"><label>Date</label><input type="date" id="p-date" value="${def}"></div></div>
   ${to?`<p class="hint" style="margin-top:-6px">Goes to ${esc(to.name)}${to.type==="debt"?", so you'll owe less":""}.</p>`:l.goal?`<p class="hint" style="margin-top:-6px">The money stays in your account, set aside for this goal.</p>`:""}
   <div class="toggle"><span>Record it<small>Turn off if you've already recorded this payment</small></span><span class="sw on" id="p-rec"></span></div>
   <button class="btn" id="p-ok">${l.goal?"Mark as saved":"Mark as paid"}</button>`,sh=>{
     bindSw(sh);
+    sh.querySelectorAll(".pchoice").forEach(b=>b.onclick=()=>{sh.querySelectorAll(".pchoice").forEach(x=>x.style.boxShadow="none");b.style.boxShadow="0 0 0 2px var(--ink)";sh.querySelector("#p-amt").value=b.dataset.v;});
     sh.querySelector("#p-ok").onclick=()=>{
       const amt=num(sh.querySelector("#p-amt").value),date=sh.querySelector("#p-date").value||todayStr(),from=sh.querySelector("#p-acc").value,rec=sh.querySelector("#p-rec").classList.contains("on");
       let txId=null;

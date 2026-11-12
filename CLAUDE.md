@@ -8,10 +8,10 @@ Earmark is a phone-first budget app: record money in and out, set money aside fo
 
 ## How it's built
 - No framework, no build step, no server. Everything is in `index.html` (HTML, CSS and JS), plus `sw.js` (offline cache), `manifest.json` and `icons/`.
-- Currency is RM. Settings for the owner are in `CONFIG` near the top of the script (`supportUrl` is empty because there is no Ko-fi yet; leave it empty until she gives a link).
+- Currency is RM. Settings for the owner are in `CONFIG` near the top of the script (`supportUrl` is empty because there is no Ko-fi yet; leave it empty until there is a link).
 
 ## User data: be careful
-- Each user's data lives only in their own browser: `localStorage` key `earmark:v1` (theme: `earmark:theme`). No accounts, no sync, nothing is sent anywhere. Keep it that way unless she decides otherwise.
+- Each user's data lives only in their own browser: `localStorage` key `earmark:v1` (theme: `earmark:theme`). No accounts, no sync, nothing is sent anywhere. Keep it that way unless the owner decides otherwise.
 - Never rename the key or change the data shape without code that upgrades existing data. Real people (including the owner) have months of real money records in there.
 - Backup/restore (one file) is the only safety net if the phone clears site data. Any change to the data must keep old backup files restorable. Test it: make data, back up, wipe, restore, and check every total matches.
 
@@ -20,7 +20,7 @@ Earmark is a phone-first budget app: record money in and out, set money aside fo
 2. Bump `VERSION` in `sw.js` (`earmark-vNN`) so phones load the new files.
 3. Check it works on a phone-sized screen (light and dark), then commit and push to `main`.
 - Commit author: `Earmark <noreply@earmarkapp.github.io>`.
-- For risky experiments, use a branch and merge only after she has tried it.
+- For risky experiments, use a branch and merge only after it has been tried on a phone.
 
 ## Public repo
 - This repo is public. No personal details, keys or passwords.

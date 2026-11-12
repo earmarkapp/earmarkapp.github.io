@@ -1544,7 +1544,8 @@ else if(D&&S().startOn==="spent")openRec("expense");
 if(!document.getElementById("tour")){const t=document.createElement("div");t.id="tour";t.className="tour";document.body.appendChild(t);t.addEventListener("click",e=>{const b=e.target.closest("[data-tour]");if(!b)return;const a=b.dataset.tour;if(a==="next"){_gDir=1;_g++;drawGuide();}else if(a==="back"){_gDir=-1;_g=Math.max(0,_g-1);drawGuide();}else closeTour();});}
 checkVersion();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(_){}
-if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{r.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{});});}).catch(()=>{});
+  let _reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(_reloaded)return;_reloaded=true;if(!$("#rec").classList.contains("on")&&!$("#sheet").classList.contains("on"))location.reload();});}
 })();
 </script>
 </body>

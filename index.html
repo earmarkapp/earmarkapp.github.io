@@ -1392,12 +1392,6 @@ function restoreJson(json){
   const go=()=>{D=normalize(json.data);S().lastBackup=Date.now();S().seenVersion=APP_VERSION;save();UI.tab="home";UI.page=null;render();closeSheet();toast("Your records are loaded");};
   if(D&&(D.tx.length||items().length))ask("Replace everything?","This replaces all the records on this phone with the backup.","Replace",go,true);else go();
 }
-async function decodeSetup(code){
-  code=String(code).trim().replace(/^.*#setup=/,"").replace(/\s+/g,"");const b64=code.replace(/-/g,"+").replace(/_/g,"/");
-  const bin=Uint8Array.from(atob(b64+"===".slice((b64.length+3)%4)),c=>c.charCodeAt(0));
-  const txt=await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();
-  const json=JSON.parse(txt);if(!json||!json.data||!json.data.settings)throw new Error("bad");return json;
-}
 function parseCSV(text){const rows=[];let row=[],f="",q=false;for(let i=0;i<text.length;i++){const c=text[i];if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++}else q=false}else f+=c;}else if(c==='"')q=true;else if(c===","){row.push(f);f=""}else if(c==="\n"||c==="\r"){if(c==="\r"&&text[i+1]==="\n")i++;row.push(f);rows.push(row);row=[];f=""}else f+=c;}if(f||row.length){row.push(f);rows.push(row)}return rows;}
 function importCSV(text){
   const rows=parseCSV(text.replace(/^﻿/,""));const hi=rows.findIndex(r=>r[0]==="Date"&&r.includes("Amount")&&r.includes("Type"));if(hi<0)return null;
@@ -1499,8 +1493,9 @@ document.addEventListener("touchend",e=>{const row=e.target.closest('#app .row[d
   if(row._dx<-130){const id=row.dataset.id;swClose();deleteTx(id);}else if(row._dx<-45){row.style.transform="translateX(-96px)";row._swJust=Date.now();}else swClose();});
 document.addEventListener("click",e=>{const row=e.target.closest('.row[data-act="edittx"]');if(row&&(row.classList.contains("swiping")||row._swJust&&Date.now()-row._swJust<400)){e.stopPropagation();e.preventDefault();swClose();}},true);
 /* ---------- version, what's new, tour ---------- */
-const APP_VERSION="1.6.0";
+const APP_VERSION="1.7.0";
 const CHANGELOG=[
+ {v:"1.7.0",date:"2026-11-12",items:["A friendly reminder to save a backup file if you haven't in a month. Tap Not now to be asked again in a week."]},
  {v:"1.6.0",date:"2026-11-12",items:["Swipe a record to the left to delete it, with Undo if it was a mistake.","Deleting from the edit screen also has Undo.","Appearance: Light, Dark, or Match phone, in More.","The walkthrough now covers trip budgets, deleting records and appearance.","The app now checks for updates each time you open it."]},
  {v:"1.5.0",date:"2026-11-12",items:["Trip and event budgets: give a trip a total budget, tag spending to it when you record (bus, food, tickets), and see how much is used and left.","Turn an existing one-off plan into a trip budget from its details."]},
  {v:"1.4.1",date:"2026-11-12",items:["The walkthrough now takes you to each screen and highlights the actual buttons, step by step."]},
@@ -1542,7 +1537,7 @@ const GUIDE=[
  {go:()=>goTab("more"),s:'[data-p="accounts"]',t:"Accounts",p:"Your bank, e-wallets, cash and savings. Update their balances here."},
  {go:()=>goTab("more"),s:'[data-act="items"]',up:".group",t:"Set up your month",p:"Add your expected income, monthly bills and budgets, and edit your categories."},
  {go:()=>goTab("more"),s:'[data-act="theme"]',t:"Appearance",p:"Choose Light, Dark, or Match phone."},
- {go:()=>goTab("more"),s:'[data-act="backup"]',t:"Keep a backup",p:"Your records live only on this phone. Save a backup file now and then, so you can move to a new phone."},
+ {go:()=>goTab("more"),s:'[data-act="backup"]',t:"Keep a backup",p:"Your records live only on this phone. Save a backup file now and then, so you can move to a new phone. The app reminds you once a month."},
  {go:()=>goTab("more"),s:'[data-act="tour"]',t:"That's it",p:"Watch this walkthrough again here any time. What's new shows the latest updates."}
 ];
 let _g=0,_gDir=1;
@@ -1571,15 +1566,20 @@ function sheetWhatsNew(all){
   <button class="btn" data-act="close">Got it</button>`,sh=>{const b=sh.querySelector("#wn-all");if(b)b.onclick=()=>sheetWhatsNew(true);});
 }
 function checkVersion(){if(!D)return;const sv=S().seenVersion;if(sv===APP_VERSION)return;S().seenVersion=APP_VERSION;save();if(!S().tourDone&&!sv&&!D.tx.length){openTour();return;}sheetWhatsNew(false);}
+function checkBackup(){if(!D||D.tx.length<10)return;const s=S(),now=Date.now(),day=864e5;
+  if(s.lastBackup&&now-s.lastBackup<30*day)return;if(s.backupAsked&&now-s.backupAsked<7*day)return;
+  if($("#sheet").classList.contains("on")||$("#rec").classList.contains("on")||$("#tour").classList.contains("on"))return;
+  s.backupAsked=now;save();
+  openSheet(`<h2>Time for a backup</h2><p class="muted" style="margin-top:-6px">Your records are kept only on this phone. If the phone is lost or its data gets cleared, a backup file is the only way to get them back.</p><p class="small muted">${s.lastBackup?"Last backup: "+esc(dLabel(dstr(new Date(s.lastBackup))))+".":"You haven't saved a backup yet."} Save it somewhere safe, like Files or iCloud Drive.</p><div class="btns"><button class="btn" id="bk-go">Save a backup file</button><button class="btn ghost" data-act="close">Not now</button></div>`,sh=>{sh.querySelector("#bk-go").onclick=()=>{closeSheet();backup();};});}
 /* ---------- boot ---------- */
 D=load();if(D)normalize(D);
 render();
 const h=location.hash;
-if(h.startsWith("#setup=")){try{history.replaceState(null,"",location.pathname+location.search)}catch(_){}decodeSetup(h).then(restoreJson).catch(()=>toast("That setup link didn't work"));}
-else if(h==="#spent"||h==="#received"){try{history.replaceState(null,"",location.pathname+location.search)}catch(_){}openRec(h==="#spent"?"expense":"income");}
+if(h==="#spent"||h==="#received"){try{history.replaceState(null,"",location.pathname+location.search)}catch(_){}openRec(h==="#spent"?"expense":"income");}
 else if(D&&S().startOn==="spent")openRec("expense");
 if(!document.getElementById("tour")){const t=document.createElement("div");t.id="tour";t.className="tour";document.body.appendChild(t);t.addEventListener("click",e=>{const b=e.target.closest("[data-tour]");if(!b)return;const a=b.dataset.tour;if(a==="next"){_gDir=1;_g++;drawGuide();}else if(a==="back"){_gDir=-1;_g=Math.max(0,_g-1);drawGuide();}else closeTour();});}
 checkVersion();
+checkBackup();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(_){}
 if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{r.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{});});}).catch(()=>{});
   let _reloaded=false;const _hadCtl=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(_reloaded||!_hadCtl)return;_reloaded=true;if(!$("#rec").classList.contains("on")&&!$("#sheet").classList.contains("on"))location.reload();});}
